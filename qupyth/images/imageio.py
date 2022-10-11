@@ -40,7 +40,8 @@ class ImageIoServer(ImageServer):
             downsamples=(1.0,),
             pixel_calibration=PixelCalibration(),
             shape=im.shape,
-            dtype=im.dtype
+            dtype=im.dtype,
+            is_rgb=im.shape[-1] == 3 and im.dtype == np.uint8 # TODO: Better determine if RGB
         )
 
     def read_block(self, level: int, block: Union[Region2D, Tuple[int, ...]]) -> np.ndarray:

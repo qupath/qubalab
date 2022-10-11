@@ -21,7 +21,7 @@ class PyramidStore(BaseStore):
     """
 
     def __init__(self, server: ImageServer, tilesize: int = 512, name: str = None,
-                 downsamples: Union[float, Iterable[float]] = None, z=0, t=0):
+                 downsamples: Union[float, Iterable[float]] = None, z=0, t=0, pad_chunks=True):
         """
         Create a Zarr-compatible mapping for a multiresolution image reading pixels from an ImageServer.
 
@@ -36,6 +36,7 @@ class PyramidStore(BaseStore):
         :param downsamples:
         :param z:
         :param t:
+        :param pad_chunks: pad to the preferred chunk size, even at the edge of the image
         """
         super().__init__()
         self._server = server
@@ -50,6 +51,7 @@ class PyramidStore(BaseStore):
         self._z = z
         self._t = t
         self._store = _build_store(server, downsamples=downsamples, tilesize=tilesize, name=name)
+        self._pad_chunks = pad_chunks
 
     def __getitem__(self, key: str):
         # Check if key is in metadata
@@ -57,25 +59,53 @@ class PyramidStore(BaseStore):
             return self._store[key]
         try:
             # We should have a chunk path, with a chunk level
-            cx, cy, level = _parse_chunk_path(key)
+            inds, level = _parse_chunk_path(key)
+            cy = inds[0]
+            cx = inds[1]
+            cz = 0
+            ct = 0
+            if len(inds) > 3:
+                cz = inds[3]
+            if len(inds) > 4:
+                ct = inds[4]
+                
             # Convert the chunk level a downsample value & also to a server level
             downsample = self._downsamples[level]
+            full_width = int(self._server.width / downsample)
+            full_height = int(self._server.height / downsample)
             server_level = _get_level(self._server.downsamples, downsample)
+            tile_width = min(full_width, self._tilesize)
+            tile_height = min(full_height, self._tilesize)
+
             if math.isclose(self._server.downsamples[server_level], downsample, abs_tol=1e-3):
                 # If our downsample value is close to what the server can provide directly, use read_block & level
-                block = (cx * self._tilesize, cy * self._tilesize, self._tilesize, self._tilesize, self._z, self._t)
+                x = int(cx * tile_width)
+                y = int(cy * tile_height)
+                w = int(min(full_width - x, tile_width))
+                h = int(min(full_height - y, tile_height))
+                block = (x, y, w, h, cz + self._z, ct + self._t)
                 tile = self._server.read_block(level=server_level, block=block)
             else:
-                # If our downsample value is anything else, use read_region to auto-apply whatever resizing we need
-                region = Region2D(
-                    downsample=downsample,
-                    x = int(cx * self._tilesize * downsample),
-                    y = int(cy * self._tilesize * downsample),
-                    width = int(round(self._tilesize * downsample)),
-                    height = int(round(self._tilesize * downsample)),
-                    z = self._z,
-                    t = self._t)
-                tile = self._server.read_region(downsample=downsample, region=region)
+                # If our downsample value is anything else, use read_region to auto-apply whatever resizing we need (shouldn't be used!)
+                x = int(cx * tile_width * downsample),
+                y = int(cy * tile_height * downsample),
+                w = int(min(full_width - x, round(tile_width * downsample))),
+                h = int(min(full_height - y, round(tile_height * downsample))),
+                region = Region2D(downsample=downsample, x=x, y=y, width=w, height=h, z=self._z, t=self._t)
+                tile = self._server.read_region(region=region)
+
+            # Pad to chunk size if needed
+            if self._pad_chunks:
+                pad_y = tile_height - tile.shape[0]
+                pad_x = tile_width - tile.shape[1]
+                if pad_y > 0 or pad_x > 0:
+                    pad_dims = tile.ndim - 2
+                    if pad_dims > 0:
+                        pad = ((0, pad_y), (0, pad_x), (0, 0) * pad_dims)
+                    else:
+                        pad = ((0, pad_y), (0, pad_x))
+                    tile = np.pad(tile, pad)
+
             return np.array(tile).tobytes()
         except ArgumentError as err:
             # Can occur if trying to read a closed slide
@@ -177,8 +207,6 @@ def _build_store(server: ImageServer, downsamples: Iterable[float], tilesize: in
     """
     Build Zarr storage.
 
-    TODO: Check on different multiscale representations; consider not using multiscale if we have a single resolution
-
     :param server:
     :param downsamples:
     :param tilesize:
@@ -188,7 +216,7 @@ def _build_store(server: ImageServer, downsamples: Iterable[float], tilesize: in
 
     if name is None:
         name = server.name
-    # TODO: Consider support for single scale
+    # TODO: Consider support for single scale?
     root_attrs = dict(
         multiscales=[
             dict(
@@ -202,20 +230,27 @@ def _build_store(server: ImageServer, downsamples: Iterable[float], tilesize: in
     init_group(store)
     store[attrs_key] = json_dumps(root_attrs)
     for ii, downsample in enumerate(downsamples):
-        h = int(server.height / downsample)
         w = int(server.width / downsample)
+        h = int(server.height / downsample)
+        print(f'{w} x {h}')
+        if server.n_z_slices > 1 or server.n_timepoints > 1:
+            shape = (h, w, server.n_channels, server.n_z_slices, server.n_timepoints)
+            chunks = (min(h, tilesize), min(w, tilesize), server.n_channels, 1, 1)
+        else:
+            shape = (h, w, server.n_channels)
+            chunks = (min(h, tilesize), min(w, tilesize), server.n_channels)
         init_array(
             store,
             path=str(ii),
-            shape=(h, w, server.n_channels),
-            chunks=(tilesize, tilesize, server.n_channels),
+            shape=shape,
+            chunks=chunks,
             dtype=server.dtype,
             compressor=None
         )
     return store
 
 
-def _parse_chunk_path(path: str) -> Tuple[int, int, int]:
+def _parse_chunk_path(path: str) -> Tuple[Tuple[int], int]:
     level, chunk = path.split('/')
-    y, x, _ = map(int, chunk.split('.'))
-    return x, y, int(level)
+    inds = tuple(map(int, chunk.split('.')))
+    return inds, int(level)

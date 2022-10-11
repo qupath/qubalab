@@ -94,6 +94,7 @@ class ImageServerMetadata:
     shape: Tuple[int]  # hwczt format
     downsamples: Tuple[float]
     pixel_calibration: PixelCalibration
+    is_rgb: bool
     dtype: np.dtype
 
 
@@ -178,6 +179,10 @@ class ImageServer(ABC):
     def _build_metadata(self) -> ImageServerMetadata:
         ...
 
+    @property
+    def is_rgb(self) -> bool:
+        return self.metadata.is_rgb
+
     @abstractmethod
     def read_block(self, level: int, block: Tuple[int, ...]) -> np.ndarray:
         """
@@ -258,15 +263,13 @@ class WrappedImageServer(ImageServer):
     def __init__(self, base_server: ImageServer):
         super().__init__()
         self._base_server = base_server
-        self._metadata = self._base_server.metadata
 
     @property
     def base_server(self) -> ImageServer:
         return self._base_server
 
-    @property
     def _build_metadata(self) -> ImageServerMetadata:
-        return None
+        return self._base_server.metadata
 
     @property
     def path(self) -> str:

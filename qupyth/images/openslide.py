@@ -46,6 +46,7 @@ class OpenSlideServer(ImageServer):
             downsamples=tuple(self._osr.level_downsamples),
             pixel_calibration=cal,
             shape=(self._bounds[3], self._bounds[2], n_channels),
+            is_rgb=True,
             dtype=np.uint8
         )
 
