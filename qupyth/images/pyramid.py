@@ -318,6 +318,10 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
         c_axis = None
         dims = store._dims
         scale = [s for s in store._scale]
+        colormap = None
+        names = None
+        if isinstance(image, ImageServer):
+            names = image.name
         # Make channels-last if RGB
         if 'c' in dims:
             c_axis = store._dims.index('c')
@@ -326,6 +330,11 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
             # Need to remove c_axis again if we have an RGB image
             if rgb:
                 c_axis = None
-        return dict(data=data, rgb=rgb, channel_axis=c_axis, axis_labels=tuple(dims), scale=scale)
+            elif isinstance(image, ImageServer):
+                colormap = [c.color for c in image.channels]
+                names = [c.name for c in image.channels]
+        return dict(data=data, rgb=rgb, channel_axis=c_axis, 
+                    axis_labels=tuple(dims), scale=scale,
+                    colormap=colormap, name=names)
     else:
         return data

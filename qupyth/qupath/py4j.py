@@ -1,4 +1,4 @@
-from ..images import ImageServer, PixelLength, PixelCalibration, ImageServerMetadata, ImageShape
+from ..images import ImageServer, PixelLength, PixelCalibration, ImageServerMetadata, ImageShape, ImageChannel
 from ..images.servers import _validate_block
 
 from dataclasses import astuple
@@ -37,6 +37,9 @@ class QuPathServer(ImageServer):
         name = meta.getName()
         cal = server.getPixelCalibration()
 
+        channels = tuple([ImageChannel(c.getName(), _unpack_color(c.getColor())) for c in meta.getChannels()])
+        print(channels)
+
         # Try to get the file path
         path = _find_server_file_path(server)
         if path is None:
@@ -61,8 +64,10 @@ class QuPathServer(ImageServer):
             pixel_calibration=pixel_cal,
             shapes=shapes,
             dtype=dt,
-            is_rgb=is_rgb
+            is_rgb=is_rgb,
+            channels=channels
         )
+
 
     def read_block(self, level: int, block: Tuple[int, ...]) -> np.ndarray:
         _, x, y, width, height, z, t = astuple(_validate_block(block))
@@ -90,6 +95,14 @@ class QuPathServer(ImageServer):
 
         # We can just provide 2D images; using volread move to channels-last
         return np.moveaxis(volread(byte_array), 0, -1)
+
+
+
+def _unpack_color(rgb: int) -> Tuple[float, float, float]:
+    r = (rgb >> 16) & 255
+    g = (rgb >> 8) & 255
+    b = rgb & 255
+    return r/255.0, g/255.0, b/255.0
 
 
 def _get_server_uris(server: JavaObject) -> Tuple[str]:

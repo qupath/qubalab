@@ -101,9 +101,36 @@ class PixelCalibration:
         return False
 
 
-class ImageResolution:
-    downsample: float
-    shape: Tuple[int, ...]
+@dataclass(frozen=True)
+class ImageChannel:
+    name: str
+    color: Tuple[float, float, float]
+
+
+_DEFAULT_CHANNEL_SINGLE = (
+    ImageChannel(name='Single channel', color=(1, 1, 1)),
+)
+
+_DEFAULT_CHANNEL_RGB = (
+    ImageChannel(name='Red', color=(1, 0, 0)),
+    ImageChannel(name='Green', color=(0, 1, 0)),
+    ImageChannel(name='Green', color=(0, 0, 1)),
+)
+
+_DEFAULT_CHANNEL_TWO = (
+    ImageChannel(name='Channel 1', color=(1, 0, 1)),
+    ImageChannel(name='Channel 2', color=(0, 1, 0))
+)
+
+_DEFAULT_CHANNEL_COLORS = (
+    (0, 1, 1),
+    (1, 1, 0),
+    (1, 0, 1),
+    (1, 0, 0),
+    (0, 1, 0),
+    (0, 0, 1)
+)
+
 
 @dataclass
 class ImageShape:
@@ -150,6 +177,7 @@ class ImageServerMetadata:
     pixel_calibration: PixelCalibration
     is_rgb: bool
     dtype: np.dtype
+    channels: Tuple[ImageChannel, ...] = None
 
 
 class ImageServer(ABC):
@@ -158,6 +186,7 @@ class ImageServer(ABC):
         super().__init__()
         self._metadata = None
         self._downsamples = None
+        self._channels = None
         self._resize_method = resize_method
 
     def _level_for_downsample(self, downsample: float):
@@ -243,7 +272,27 @@ class ImageServer(ABC):
         metadata set at initialization has been updated (i.e. this ImageServer wraps 
         around some mutable instance).
         """
-        self._metdata = self._build_metadata()
+        self._metadata = self._build_metadata()
+
+    @property
+    def channels(self) -> Tuple[ImageChannel, ...]:
+        # Get from metadata as most recent channels
+        channels = self.metadata.channels
+        if channels:
+            return channels
+        # Cache default channels if we don't have them already
+        if not self._channels:
+            if self.n_channels == 1:
+                channels = _DEFAULT_CHANNEL_SINGLE
+            elif self.n_channels == 2:
+                channels = _DEFAULT_CHANNEL_TWO
+            elif self.is_rgb:
+                channels = _DEFAULT_CHANNEL_RGB
+            else:
+                channels = [ImageChannel(f'Channel {ii+1}',
+                    _DEFAULT_CHANNEL_COLORS[ii % len(_DEFAULT_CHANNEL_COLORS)]) for ii in range(self.n_channels)]
+            self._channels = channels
+        return self._channels
 
     @property
     def is_rgb(self) -> bool:
