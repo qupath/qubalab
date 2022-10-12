@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from multiprocessing.sharedctypes import Value
-from typing import Union, List, Tuple
+from typing import Union, Tuple
 from dataclasses import dataclass
 from enum import Enum
 from PIL import Image, ImageCms
@@ -62,27 +62,48 @@ class Region2D:
 
 
 
-class Units(Enum):
+@dataclass(frozen=True)
+class PixelLength:
     """
-    Simple enum for length units.
-    Currently only 'pixels' and 'µm' are supported.
+    Simple data class to store pixel size information, along one dimension.
+    Can be thought of as the pixel width, pixel height or pixel depth (z-spacing).
     """
-    PIXELS = 'px'
-    MICRONS = 'μm'
+    length: float = 1.0
+    unit: str = 'pixels'
+
+    def is_default(self) -> bool:
+        """
+        Returns True if this is a default value (length is 1.0 and unit is 'pixels'), False otherwise.
+        """
+        return self.length == 1.0 and self.unit == 'pixels'
+
+    @staticmethod
+    def create_microns(length: float) -> 'PixelLength':
+        return PixelLength(length=length, unit='micrometer')
 
 
-@dataclass
+@dataclass(frozen=True)
 class PixelCalibration:
     """
     Simple data class for storing pixel calibration information.
     Currently only the width, height and depth (z-spacing) are supported 
     and units are assumed to be the same in all dimensions.
     """
-    pixel_width: float = 1.0
-    pixel_height: float = 1.0
-    pixel_depth: float = 1.0
-    units: Units = Units.PIXELS
+    length_x: PixelLength = PixelLength()
+    length_y: PixelLength = PixelLength()
+    length_z: PixelLength = PixelLength()
 
+    @property
+    def is_calibrated(self) -> bool:
+        for siz in [self.length_x, self.length_y, self.length_z]:
+            if not siz.is_default():
+                return True
+        return False
+
+
+class ImageResolution:
+    downsample: float
+    shape: Tuple[int, ...]
 
 @dataclass
 class ImageServerMetadata:
@@ -91,7 +112,7 @@ class ImageServerMetadata:
     """
     path: str
     name: str
-    shape: Tuple[int]  # hwczt format
+    shape: Tuple[int, ...]  # hwczt format
     downsamples: Tuple[float]
     pixel_calibration: PixelCalibration
     is_rgb: bool
@@ -101,9 +122,10 @@ class ImageServerMetadata:
 
 class ImageServer(ABC):
 
-    def __init__(self):
+    def __init__(self, resize_method: Image.Resampling = Image.Resampling.BICUBIC):
         super().__init__()
         self._metadata = None
+        self._resize_method = resize_method
 
     def _level_for_downsample(self, downsample: float):
         downsamples = self.downsamples
@@ -145,7 +167,7 @@ class ImageServer(ABC):
 
         if region is None:
             region = Region2D(downsample=downsample,
-                              x=0, y=0, width=width, height=height, z=z, t=t)
+                              x=x, y=y, width=width, height=height, z=z, t=t)
         elif isinstance(region, Tuple):
             # If we have a tuple, use it along with the downsample if available
             if downsample is None:
@@ -173,11 +195,21 @@ class ImageServer(ABC):
         Resampling method to use when resizing the image for downsampling.
         Subclasses can override this, e.g. to enforce nearest neighbor resampling for label images.
         """
-        return Image.Resampling.BICUBIC
+        return self._resize_method
 
     @abstractmethod
     def _build_metadata(self) -> ImageServerMetadata:
         ...
+
+    def rebuild_metadata(self):
+        """
+        Request that the metadata is rebuilt.
+
+        This shouldn't normally be required, but may be useful in some cases where the 
+        metadata set at initialization has been updated (i.e. this ImageServer wraps 
+        around some mutable instance).
+        """
+        self._metdata = self._build_metadata()
 
     @property
     def is_rgb(self) -> bool:
@@ -260,8 +292,8 @@ class WrappedImageServer(ImageServer):
     e.g. to transform the image in some way.
     """
 
-    def __init__(self, base_server: ImageServer):
-        super().__init__()
+    def __init__(self, base_server: ImageServer, **kwargs):
+        super().__init__(**kwargs)
         self._base_server = base_server
 
     @property
@@ -288,8 +320,10 @@ class IccProfileServer(WrappedImageServer):
     for a blog post describing where this may be useful, and providing further code.
     """
 
-    def __init__(self, base_server: ImageServer, icc_profile: Union[bytes, ImageCms.ImageCmsProfile, ImageCms.ImageCmsTransform]=None):
-        super().__init__(base_server)
+    def __init__(self, base_server: ImageServer, 
+                       icc_profile: Union[bytes, ImageCms.ImageCmsProfile, ImageCms.ImageCmsTransform]=None,
+                       **kwargs):
+        super().__init__(base_server, **kwargs)
 
         try:
             if isinstance(icc_profile, ImageCms.ImageCmsProfile) or isinstance(icc_profile, bytes):

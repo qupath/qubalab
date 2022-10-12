@@ -1,4 +1,4 @@
-from . import ImageServer, ImageServerMetadata, PixelCalibration, Units
+from . import ImageServer, ImageServerMetadata, PixelCalibration, PixelLength
 from .servers import _validate_block
 
 from typing import Tuple
@@ -10,8 +10,8 @@ from pathlib import Path
 
 class OpenSlideServer(ImageServer):
 
-    def __init__(self, path: str, strip_alpha=True, single_channel=False, limit_bounds=True):
-        super().__init__()
+    def __init__(self, path: str, strip_alpha=True, single_channel=False, limit_bounds=True, **kwargs):
+        super().__init__(**kwargs)
         self._osr = openslide.open_slide(path)
         self._path = path
         self._strip_alpha = strip_alpha
@@ -37,7 +37,10 @@ class OpenSlideServer(ImageServer):
         pixel_width = self._osr.properties.get('openslide.mpp-x')
         pixel_height = self._osr.properties.get('openslide.mpp-y')
         if pixel_width is not None and pixel_height is not None:
-            cal = PixelCalibration(pixel_width=float(pixel_width), pixel_height=float(pixel_height), units=Units.MICRONS)
+            cal = PixelCalibration(
+                length_x = PixelLength.create_microns(float(pixel_width)),
+                length_y = PixelLength.create_microns(float(pixel_height))
+                )
         else:
             cal = PixelCalibration()
         return ImageServerMetadata(

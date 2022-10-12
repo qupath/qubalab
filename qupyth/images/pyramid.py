@@ -201,17 +201,12 @@ class PyramidStore(BaseStore):
             # Determine which dimensions to keep
             inds = [ii for ii, s in enumerate(shape) if s > 1 or ii > 2]
             getter = itemgetter(*inds)
-            unit = cal.units.name.lower()
-            if unit in ['µm', 'microns', 'micrometre']:
-                unit = 'micrometer'
-            elif unit in ['px', 'pixels']:
-                unit = None
             axes = [
                 dict(name='t', type='time'),
                 dict(name='c', type='channel'),
-                dict(name='z', type='space', unit=unit),            
-                dict(name='y', type='space', unit=unit),            
-                dict(name='x', type='space', unit=unit),            
+                dict(name='z', type='space', unit=cal.length_z.unit),            
+                dict(name='y', type='space', unit=cal.length_y.unit),            
+                dict(name='x', type='space', unit=cal.length_x.unit),            
                 ]
             self._dims = ''.join(getter('tczyx'))
 
@@ -220,7 +215,7 @@ class PyramidStore(BaseStore):
             if ii == 0:
                 datasets = []
                 # Store scales for later
-                self._scale = [1.0, 1.0, cal.pixel_depth, cal.pixel_height, cal.pixel_width]
+                self._scale = tuple(getter([1.0, 1.0, cal.length_z.length, cal.length_y.length, cal.length_x.length]))
                 
                 # Compute scales for downsample (for OME-Zarr in the future)
                 for di, d in enumerate(downsamples):
@@ -228,7 +223,7 @@ class PyramidStore(BaseStore):
                     scale_for_level[-2] = scale_for_level[-2] * d
                     scale_for_level[-1] = scale_for_level[-1] * d
                     datasets.append(dict(path=str(di), coordinateTransformations=[
-                        dict(type='scale', scale=getter(scale_for_level))
+                        dict(type='scale', scale=scale_for_level)
                     ]))
                 root_attrs = dict(
                     multiscales=[
@@ -318,13 +313,15 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=False, as_napari_kwargs
     if as_napari_kwargs:
         c_axis = None
         dims = store._dims
+        scale = [s for s in store._scale]
         # Make channels-last if RGB
-        if rgb and 'c' in dims:
-            dims = dims.replace('c', '')
-        elif 'c' in store._dims:
-            rgb = False
+        if 'c' in dims:
             c_axis = store._dims.index('c')
             dims = dims.replace('c', '') # Currently (Napari 0.4.16) need to remove c when specifying index
-        return dict(data=data, rgb=rgb, channel_axis=c_axis, axis_labels=tuple(dims))
+            scale.pop(c_axis)
+            # Need to remove c_axis again if we have an RGB image
+            if rgb:
+                c_axis = None
+        return dict(data=data, rgb=rgb, channel_axis=c_axis, axis_labels=tuple(dims), scale=scale)
     else:
         return data

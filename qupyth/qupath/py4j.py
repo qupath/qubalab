@@ -1,4 +1,4 @@
-from ..images import ImageServer, PixelCalibration, ImageServerMetadata, Units
+from ..images import ImageServer, PixelLength, PixelCalibration, ImageServerMetadata
 from ..images.servers import _validate_block
 
 from dataclasses import astuple
@@ -12,8 +12,8 @@ import numpy as np
 
 class QuPathServer(ImageServer):
 
-    def __init__(self, gateway: JavaGateway, server_obj: JavaObject):
-        super().__init__()
+    def __init__(self, gateway: JavaGateway, server_obj: JavaObject, **kwargs):
+        super().__init__(**kwargs)
         self._gateway = gateway
         self._server_obj = server_obj
 
@@ -33,10 +33,15 @@ class QuPathServer(ImageServer):
         path = server.getPath()
 
         if cal.hasPixelSizeMicrons():
+            if cal.getZSpacingMicrons():
+                length_z = PixelLength.create_microns(cal.getZSpacingMicrons())
+            else:
+                length_z = PixelLength()
             pixel_cal = PixelCalibration(
-                pixel_width=cal.getPixelWidthMicrons(),
-                pixel_height=cal.getPixelHeightMicrons(),
-                units=Units.MICRONS)
+                length_x = PixelLength.create_microns(cal.getPixelWidthMicrons()),
+                length_y = PixelLength.create_microns(cal.getPixelHeightMicrons()),
+                length_z = length_z
+                )
         else:
             pixel_cal = PixelCalibration()
 
