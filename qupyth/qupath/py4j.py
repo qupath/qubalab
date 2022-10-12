@@ -9,6 +9,9 @@ from imageio.v3 import imread
 from imageio import volread
 import numpy as np
 
+from urllib.parse import urlparse, unquote
+from pathlib import Path
+
 
 class QuPathServer(ImageServer):
 
@@ -34,8 +37,10 @@ class QuPathServer(ImageServer):
         name = meta.getName()
         cal = server.getPixelCalibration()
 
-        # TODO: Replace with URIs!
-        path = server.getPath()
+        # Try to get the file path
+        path = _find_server_file_path(server)
+        if path is None:
+            path = server.getPath()
         
         if cal.hasPixelSizeMicrons():
             if cal.getZSpacingMicrons():
@@ -65,11 +70,13 @@ class QuPathServer(ImageServer):
         gateway = self._gateway
         server = self._server_obj
 
+        # TODO: Explore requesting directly in QuPath - this is awkward and could result in 
+        # rounding problems
         if level < 0:
             level = len(self.downsamples) + level
         downsample = server.getDownsampleForResolution(level)
-        request = gateway.jvm.qupath.lib.regions.RegionRequest.createInstance(
-            server.getPath(),
+
+        byte_array = gateway.entry_point.getTiff(server,
             downsample,
             int(round(x * downsample)),
             int(round(y * downsample)),
@@ -78,9 +85,27 @@ class QuPathServer(ImageServer):
             z,
             t)
 
-        byte_array = gateway.entry_point.getTiff(server, request)
         if self.metadata.is_rgb or self.n_channels == 1:
             return imread(byte_array)
 
         # We can just provide 2D images; using volread move to channels-last
         return np.moveaxis(volread(byte_array), 0, -1)
+
+
+def _get_server_uris(server: JavaObject) -> Tuple[str]:
+    """
+    Get URIs for a java object representing an ImageServer.
+    """
+    return tuple(str(u) for u in server.getURIs())
+
+def _find_server_file_path(server: JavaObject) -> str:
+    """
+    Try to get the file path for a java object representing an ImageServer.
+    This can be useful
+    """
+    uris = _get_server_uris(server)
+    if len(uris) == 1:
+        parsed = urlparse(uris[0])
+        if parsed.scheme == 'file':
+            return unquote(parsed.path)
+    return None

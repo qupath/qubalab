@@ -3,8 +3,17 @@ from .servers import _validate_block
 
 from typing import Tuple
 from dataclasses import astuple
+import warnings
 
-import openslide
+try:
+    import openslide
+except ImportError as e:
+    warnings.warn(f'Unable to import OpenSlide, will try TiffSlide instead')
+    try:
+        import tiffslide as openslide
+    except ImportError as e:
+        warnings.warn(f'Unable to import TiffSlide')
+
 import numpy as np
 from pathlib import Path
 
@@ -12,7 +21,7 @@ class OpenSlideServer(ImageServer):
 
     def __init__(self, path: str, strip_alpha=True, single_channel=False, limit_bounds=True, **kwargs):
         super().__init__(**kwargs)
-        self._osr = openslide.open_slide(path)
+        self._osr = openslide.OpenSlide(path)
         self._path = path
         self._strip_alpha = strip_alpha
         self._single_channel = single_channel
@@ -47,11 +56,11 @@ class OpenSlideServer(ImageServer):
 
         # Determine shapes for all levels
         if full_bounds:
-            shapes = tuple(ImageShape(x=d[0], y=d[1], c=3) for d in self._osr.level_dimensions)
+            shapes = tuple(ImageShape(x=d[0], y=d[1], c=n_channels) for d in self._osr.level_dimensions)
         else:
             w = self._bounds[3]
             h = self._bounds[2]
-            shapes = tuple(ImageShape(x=int(w/d), y=int(h/d), c=3) for d in self._osr.level_downsamples)
+            shapes = tuple(ImageShape(x=int(w/d), y=int(h/d), c=n_channels) for d in self._osr.level_downsamples)
 
         return ImageServerMetadata(
             path=self._path,

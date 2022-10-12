@@ -208,7 +208,7 @@ class ImageServer(ABC):
             else:
                 region = Region2D((downsample,) + region)
         
-        if ~isinstance(region, Region2D):
+        if not isinstance(region, Region2D):
             raise ValueError('No valid region provided to read_region method')
 
         all_downsamples = self.downsamples
@@ -216,6 +216,7 @@ class ImageServer(ABC):
         level_downsample = all_downsamples[level]
 
         block = region.downsample_region(downsample=level_downsample)
+
         im = self.read_block(level=level, block=block)
         if downsample == level_downsample:
             return im

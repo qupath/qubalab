@@ -43,7 +43,7 @@ class PyramidStore(BaseStore):
         self._server = server
         
         if not tile_size:
-            tile_size = (512, 512)
+            tile_size = (1024, 1024)
         elif isinstance(tile_size, (int, float)):
             tile_size = (int(tile_size), int(tile_size))
         self._tile_width = tile_size[0]
@@ -275,7 +275,7 @@ def _open_zarr_group(image: Union[ImageServer, PyramidStore], **kwargs):
 
 
 
-def to_dask(image: Union[ImageServer, PyramidStore], rgb=False, as_napari_kwargs=False, squeeze=True, **kwargs):
+def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=False, squeeze=True, **kwargs):
     """
     Create one or more dask arrays for an ImageServer.
     This provides a more pythonic/numpy-esque method to extract pixel data at any arbitrary resolution.
@@ -289,10 +289,13 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=False, as_napari_kwargs
     :return:       a single dask array if the keyword argument 'downsamples' is a number, or a tuple of dask arrays if
                    'downsamples' is an iterable; if as_napari_kwargs this is passed as the 'data' value in a dict
     """
+
     if isinstance(image, PyramidStore):
         store = image
     elif isinstance(image, ImageServer):
         store = PyramidStore(image, squeeze=squeeze, **kwargs)
+        if rgb is None:
+            rgb = image.is_rgb
     else:
         raise ValueError(f'Unable to convert object of type {type(image)} to Dask array - '
                          f'only ImageServer and PyramidStore supported')
