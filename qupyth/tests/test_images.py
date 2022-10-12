@@ -1,5 +1,7 @@
 import pytest
 
+from qupyth.images.servers import ImageShape
+
 from ..images import *
 
 
@@ -55,3 +57,19 @@ def test_pixel_calibration():
     cal3 = PixelCalibration(length_x=PixelLength.create_microns(0.25))
     assert cal != cal3
     assert cal3.is_calibrated
+
+
+def test_image_shape():
+    x = 1
+    y = 2
+    z = 3
+    t = 4
+    c = 5
+    shape = ImageShape(x=x, y=y, t=t, z=z, c=c)
+    assert shape.as_tuple('yx') == (y, x)
+    assert shape.as_tuple() == (t, c, z, y, x)
+    shape2 = ImageShape.from_tczyx(t, c, z, y, x)
+    assert shape == shape2
+    assert shape2.as_tuple() == (t, c, z, y, x)
+    assert shape2.as_tuple() != (c, t, z, y, x)
+    

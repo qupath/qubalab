@@ -24,7 +24,7 @@ class PyramidStore(BaseStore):
     """
 
     def __init__(self, server: ImageServer, tile_size: Union[int, Tuple[int, int]] = None, name: str = None,
-                 downsamples: Union[float, Iterable[float]] = None, z=0, t=0):
+                 downsamples: Union[float, Iterable[float]] = None, squeeze=True):
         """
         Create a Zarr-compatible mapping for a multiresolution image reading pixels from an ImageServer.
 
@@ -37,8 +37,7 @@ class PyramidStore(BaseStore):
         :param tile_size:
         :param name:
         :param downsamples:
-        :param z:
-        :param t:
+        :param squeeze:
         """
         super().__init__()
         self._server = server
@@ -58,9 +57,7 @@ class PyramidStore(BaseStore):
             name = str(uuid.uuid1())
 
         self._downsamples = downsamples
-        self._z = z
-        self._t = t
-        self._store = self._build_store(downsamples=downsamples, name=name)
+        self._store = self._build_store(downsamples=downsamples, name=name, squeeze=squeeze)
 
 
     def __getitem__(self, key: str):
@@ -85,7 +82,7 @@ class PyramidStore(BaseStore):
                 y = int(cy * tile_height)
                 w = int(min(full_width - x, tile_width))
                 h = int(min(full_height - y, tile_height))
-                block = (x, y, w, h, cz + self._z, ct + self._t)
+                block = (x, y, w, h, cz, ct)
                 tile = self._server.read_block(level=server_level, block=block)
             else:
                 # If our downsample value is anything else, use read_region to auto-apply whatever resizing we need (shouldn't be used!)
@@ -93,7 +90,7 @@ class PyramidStore(BaseStore):
                 y = int(cy * tile_height * downsample),
                 w = int(min(full_width - x, round(tile_width * downsample))),
                 h = int(min(full_height - y, round(tile_height * downsample))),
-                region = Region2D(downsample=downsample, x=x, y=y, width=w, height=h, z=self._z, t=self._t)
+                region = Region2D(downsample=downsample, x=x, y=y, width=w, height=h, z=cz, t=ct)
                 tile = self._server.read_region(region=region)
 
             # Chunks should be the same size (according to zarr spec), so pad if needed
@@ -171,7 +168,7 @@ class PyramidStore(BaseStore):
 
 
 
-    def _build_store(self, downsamples: Iterable[float], name: str = None) -> Dict[str, bytes]:
+    def _build_store(self, downsamples: Iterable[float], name: str = None, squeeze=True) -> Dict[str, bytes]:
         """
         Build Zarr storage
         """
@@ -199,8 +196,11 @@ class PyramidStore(BaseStore):
             chunks = (1, c, 1, min(h, tile_height), min(w, tile_width))
 
             # Determine which dimensions to keep
-            inds = [ii for ii, s in enumerate(shape) if s > 1 or ii > 2]
-            getter = itemgetter(*inds)
+            if squeeze:
+                inds = [ii for ii, s in enumerate(shape) if s > 1 or ii > 2]
+                getter = itemgetter(*inds)
+            else:
+                getter = itemgetter(0, 1, 2, 3, 4)
             axes = [
                 dict(name='t', type='time'),
                 dict(name='c', type='channel'),
@@ -275,7 +275,7 @@ def _open_zarr_group(image: Union[ImageServer, PyramidStore], **kwargs):
 
 
 
-def to_dask(image: Union[ImageServer, PyramidStore], rgb=False, as_napari_kwargs=False, **kwargs):
+def to_dask(image: Union[ImageServer, PyramidStore], rgb=False, as_napari_kwargs=False, squeeze=True, **kwargs):
     """
     Create one or more dask arrays for an ImageServer.
     This provides a more pythonic/numpy-esque method to extract pixel data at any arbitrary resolution.
@@ -284,6 +284,7 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=False, as_napari_kwargs
 
     :param image:  the image containing pixels
     :param as_napari_kwargs:  if True, wrap the output in a dict that can be passed to napari.view_image.
+    :param squeeze: if True, remove singleton z, t and c dimensions
     :param kwargs: passed to PyramidStore if the input is an ImageServer
     :return:       a single dask array if the keyword argument 'downsamples' is a number, or a tuple of dask arrays if
                    'downsamples' is an iterable; if as_napari_kwargs this is passed as the 'data' value in a dict
@@ -291,12 +292,12 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=False, as_napari_kwargs
     if isinstance(image, PyramidStore):
         store = image
     elif isinstance(image, ImageServer):
-        store = PyramidStore(image, **kwargs)
+        store = PyramidStore(image, squeeze=squeeze, **kwargs)
     else:
         raise ValueError(f'Unable to convert object of type {type(image)} to Dask array - '
                          f'only ImageServer and PyramidStore supported')
     
-    grp = _open_zarr_group(store, **kwargs)
+    grp = _open_zarr_group(store, squeeze=squeeze, **kwargs)
     multiscales = grp.attrs["multiscales"][0]
     pyramid = tuple(da.from_zarr(store, component=d["path"]) for d in multiscales["datasets"])
 

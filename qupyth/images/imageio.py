@@ -1,4 +1,5 @@
-from . import ImageServer, ImageServerMetadata, PixelCalibration, _validate_block, Region2D
+from . import ImageServer, ImageServerMetadata, PixelCalibration, Region2D, ImageShape
+from .servers import _validate_block
 
 from typing import Tuple, Union
 from pathlib import Path
@@ -10,11 +11,13 @@ class ImageIoServer(ImageServer):
     """
     An ImageServer using ImageIO.
     This is used for most 'regular' images (e.g. JPEG, PNG, small TIFF).
+
+    Note: this is NOT finished! Remains to be seen if it will be useful at all.
     TODO: Support volread
     """
 
-    def __init__(self, path: str, strip_alpha=True, cache_image=True, im: np.ndarray = None):
-        super().__init__()
+    def __init__(self, path: str, strip_alpha=True, cache_image=True, im: np.ndarray = None, **kwargs):
+        super().__init__(**kwargs)
         self._path = path
         self._strip_alpha = strip_alpha
         self._cache_image = cache_image
@@ -37,9 +40,7 @@ class ImageIoServer(ImageServer):
         return ImageServerMetadata(
             path=self._path,
             name=name,
-            downsamples=(1.0,),
-            pixel_calibration=PixelCalibration(),
-            shape=im.shape,
+            shapes=ImageShape(x=im.shape[1], y=im.shape[0], c=1 if im.ndim == 2 else im.shape[2]),
             dtype=im.dtype,
             is_rgb=im.shape[-1] == 3 and im.dtype == np.uint8 # TODO: Better determine if RGB
         )

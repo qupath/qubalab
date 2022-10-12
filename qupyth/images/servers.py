@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from multiprocessing.sharedctypes import Value
-from typing import Union, Tuple
+from typing import Iterable, Union, Tuple
 from dataclasses import dataclass
 from enum import Enum
 from PIL import Image, ImageCms
@@ -106,18 +106,50 @@ class ImageResolution:
     shape: Tuple[int, ...]
 
 @dataclass
+class ImageShape:
+    """
+    Simple data class to store an image shape.
+    Useful to avoid ambiguity about dimension order.
+    """
+    x: int
+    y: int
+    t: int = 1
+    c: int = 1
+    z: int = 1
+
+    def from_tczyx(*args) -> 'ImageShape':
+        return ImageShape(t=args[0], c=args[1], z=args[2], y=args[3], x=args[4])
+
+    def as_tuple(self, dims: str = 'tczyx'):
+        return tuple(self.__getattribute__(d) for d in dims)
+
+def _possible_downsample(x1: int, x2: int, downsample: float) -> bool:
+    return int(int(x1 / downsample) * downsample) == x2 or int(round(int(round(x1 / downsample)) * downsample)) == x2
+
+def _estimate_downsample(main_shape: ImageShape, secondary_shape: ImageShape) -> float:
+    dx = main_shape.x / secondary_shape.x
+    dy = main_shape.y / secondary_shape.y
+    downsample = (dx + dy) / 2.0
+    downsample_round = round(downsample)
+    if _possible_downsample(main_shape.x, secondary_shape.x, downsample_round) and _possible_downsample(main_shape.y, secondary_shape.y, downsample_round):
+        if downsample != downsample_round:
+            warnings.warn(f'Returning rounded downsample value {downsample_round} instead of {downsample}')
+        return downsample_round
+    return downsample
+
+
+
+@dataclass
 class ImageServerMetadata:
     """
     Simple data class to store core metadata for a pyramidal image.
     """
     path: str
     name: str
-    shape: Tuple[int, ...]  # hwczt format
-    downsamples: Tuple[float]
+    shapes: Tuple[ImageShape, ...]
     pixel_calibration: PixelCalibration
     is_rgb: bool
     dtype: np.dtype
-
 
 
 class ImageServer(ABC):
@@ -125,6 +157,7 @@ class ImageServer(ABC):
     def __init__(self, resize_method: Image.Resampling = Image.Resampling.BICUBIC):
         super().__init__()
         self._metadata = None
+        self._downsamples = None
         self._resize_method = resize_method
 
     def _level_for_downsample(self, downsample: float):
@@ -238,8 +271,8 @@ class ImageServer(ABC):
         return self._metadata
 
     @property
-    def shape(self) -> Tuple:
-        return self.metadata.shape
+    def shape(self) -> ImageShape:
+        return self.metadata.shapes[0]
 
     @property
     def dtype(self) -> np.dtype:
@@ -247,31 +280,34 @@ class ImageServer(ABC):
 
     @property
     def width(self) -> int:
-        return self._dim_length(1)
+        return self.shape.x
 
     @property
     def height(self) -> int:
-        return self._dim_length(0)
+        return self.shape.y
 
     @property
     def n_channels(self) -> int:
-        return self._dim_length(2)
+        return self.shape.c
 
     @property
     def n_resolutions(self) -> int:
-        return len(self.metadata.downsamples)
+        return len(self.metadata.shapes)
 
     @property
     def n_timepoints(self) -> int:
-        return self._dim_length(4)
+        return self.shape.t
 
     @property
     def n_z_slices(self) -> int:
-        return self._dim_length(3)
+        return self.shape.z
 
     @property
-    def downsamples(self) -> Tuple[float]:
-        return self.metadata.downsamples
+    def downsamples(self) -> Tuple[float, ...]:
+        if not self._downsamples:
+            main_shape = self.metadata.shapes[0]
+            self._downsamples = tuple(_estimate_downsample(main_shape, s) for s in self.metadata.shapes)
+        return self._downsamples
 
     @property
     def path(self) -> str:

@@ -1,4 +1,4 @@
-from ..images import ImageServer, PixelLength, PixelCalibration, ImageServerMetadata
+from ..images import ImageServer, PixelLength, PixelCalibration, ImageServerMetadata, ImageShape
 from ..images.servers import _validate_block
 
 from dataclasses import astuple
@@ -21,7 +21,12 @@ class QuPathServer(ImageServer):
         # Get what we can directly from the server
         server = self._server_obj
         downsamples = tuple([d for d in server.getPreferredDownsamples()])
-        shape = [server.getHeight(), server.getWidth(), server.nChannels(), server.nZSlices(), server.nTimepoints()]
+        
+        self._downsamples = downsamples # Use the QuPath values directly
+        
+        shapes = tuple([ImageShape(x=level.getWidth(), y=level.getHeight(), c=server.nChannels(), z=server.nZSlices(), t=server.nTimepoints())
+            for level in server.getMetadata().getLevels()])
+
         dt = np.dtype(server.getPixelType().toString().lower())
         is_rgb = server.isRGB()
 
@@ -31,7 +36,7 @@ class QuPathServer(ImageServer):
 
         # TODO: Replace with URIs!
         path = server.getPath()
-
+        
         if cal.hasPixelSizeMicrons():
             if cal.getZSpacingMicrons():
                 length_z = PixelLength.create_microns(cal.getZSpacingMicrons())
@@ -48,9 +53,8 @@ class QuPathServer(ImageServer):
         return ImageServerMetadata(
             path=path,
             name=name,
-            downsamples=downsamples,
             pixel_calibration=pixel_cal,
-            shape=shape,
+            shapes=shapes,
             dtype=dt,
             is_rgb=is_rgb
         )

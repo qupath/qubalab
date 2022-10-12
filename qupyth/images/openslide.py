@@ -1,4 +1,4 @@
-from . import ImageServer, ImageServerMetadata, PixelCalibration, PixelLength
+from . import ImageServer, ImageServerMetadata, PixelCalibration, PixelLength, ImageShape
 from .servers import _validate_block
 
 from typing import Tuple
@@ -19,6 +19,7 @@ class OpenSlideServer(ImageServer):
         self._limit_bounds = limit_bounds
 
     def _build_metadata(self) -> ImageServerMetadata:
+        full_bounds = (0, 0) + self._osr.dimensions
         bounds = (self._osr.properties.get(openslide.PROPERTY_NAME_BOUNDS_X),
                   self._osr.properties.get(openslide.PROPERTY_NAME_BOUNDS_Y),
                   self._osr.properties.get(openslide.PROPERTY_NAME_BOUNDS_WIDTH),
@@ -26,7 +27,7 @@ class OpenSlideServer(ImageServer):
         if self._limit_bounds and not any(v is None for v in bounds):
             self._bounds = bounds
         else:
-            self._bounds = (0, 0) + self._osr.dimensions
+            self._bounds = full_bounds
         if self._single_channel:
             n_channels = 1
         elif self._strip_alpha:
@@ -43,12 +44,20 @@ class OpenSlideServer(ImageServer):
                 )
         else:
             cal = PixelCalibration()
+
+        # Determine shapes for all levels
+        if full_bounds:
+            shapes = tuple(ImageShape(x=d[0], y=d[1], c=3) for d in self._osr.level_dimensions)
+        else:
+            w = self._bounds[3]
+            h = self._bounds[2]
+            shapes = tuple(ImageShape(x=int(w/d), y=int(h/d), c=3) for d in self._osr.level_downsamples)
+
         return ImageServerMetadata(
             path=self._path,
             name=name,
-            downsamples=tuple(self._osr.level_downsamples),
+            shapes=shapes,
             pixel_calibration=cal,
-            shape=(self._bounds[3], self._bounds[2], n_channels),
             is_rgb=True,
             dtype=np.uint8
         )
