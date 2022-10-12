@@ -1,4 +1,4 @@
-from . import ImageServer, ImageServerMetadata, PixelCalibration, Region2D, ImageShape
+from . import ImageServer, ImageServerMetadata, Region2D, ImageShape
 from .servers import _validate_block
 
 from typing import Tuple, Union

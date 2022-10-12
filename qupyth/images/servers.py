@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
-from multiprocessing.sharedctypes import Value
-from typing import Iterable, Union, Tuple
+from typing import Union, Tuple
 from dataclasses import dataclass
-from enum import Enum
 from PIL import Image, ImageCms
 
 import io
@@ -239,6 +237,13 @@ class ImageServer(ABC):
         
         if not isinstance(region, Region2D):
             raise ValueError('No valid region provided to read_region method')
+
+        # Fix negative values for width or height
+        if region.width < 0 or region.height < 0:
+            w = region.width if region.width >= 0 else self.width - region.x
+            h = region.height if region.height >= 0 else self.height - region.y
+            region =  Region2D(downsample=region.downsample,
+                              x=region.x, y=region.y, width=w, height=h, z=region.z, t=region.t)
 
         all_downsamples = self.downsamples
         level = _get_level(all_downsamples, region.downsample)
