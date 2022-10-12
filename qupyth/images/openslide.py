@@ -37,7 +37,7 @@ class OpenSlideServer(ImageServer):
         pixel_width = self._osr.properties.get('openslide.mpp-x')
         pixel_height = self._osr.properties.get('openslide.mpp-y')
         if pixel_width is not None and pixel_height is not None:
-            cal = PixelCalibration(pixel_width=pixel_width, pixel_height=pixel_height, units=Units.MICRONS)
+            cal = PixelCalibration(pixel_width=float(pixel_width), pixel_height=float(pixel_height), units=Units.MICRONS)
         else:
             cal = PixelCalibration()
         return ImageServerMetadata(
