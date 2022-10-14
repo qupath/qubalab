@@ -4,6 +4,7 @@ from qupyth.images.servers import ImageShape
 
 from ..images import *
 
+import numpy as np
 
 def test_region2D_defaults():
     region = Region2D()
@@ -73,3 +74,17 @@ def test_image_shape():
     assert shape2.as_tuple() == (t, c, z, y, x)
     assert shape2.as_tuple() != (c, t, z, y, x)
     
+
+def test_resize():
+    from ..images.servers import _resize
+    rng = np.random.default_rng(100)
+    size_orig = (50, 65)
+    for dt in [np.uint8, np.int8, np.uint16, np.float32, np.float64]:
+        for n_channels in range(1, 5):
+            im = rng.normal(loc=100, scale=10, size=size_orig + (n_channels,))
+            im = im.astype(dt)
+            for target_size in ((40, 40), (50, 25), (60, 65), (100, 100)):
+                im2 = _resize(im, target_size=target_size)
+                assert im2.shape[0] == target_size[1]
+                assert im2.shape[1] == target_size[0]
+                assert im.dtype == im2.dtype

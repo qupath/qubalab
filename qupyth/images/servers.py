@@ -522,31 +522,38 @@ def _resize(im: Union[np.ndarray, Image.Image], target_size: Tuple[int, int], re
     """
     Resize an image to a target size.
 
-    This uses the implementation from PIL; watch out for image types that may not be supported.
+    This uses the implementation from PIL.
 
-    :param im:
-    :param target_size:
-    :param resample:
+    :param im: input image; assumed channels-last with 2 or 3 dimensions
+    :param target_size: target size in (width, height format)
+    :param resample: reampling mode to use
     :return:
     """
     if _get_size(im) == target_size:
         return im
-    do_convert = isinstance(im, np.ndarray)
-    if do_convert:
-        n_channels = 1 if im.ndim == 2 else im.shape[2]
-        if n_channels == 1 and im.shape[2] == 1:
-            im = im.squeeze()
-        if im.dtype == np.uint8:
-            modes8 = {3: 'RGB', 4: 'RGBA'}
-            mode = modes8.get(n_channels, 'P')
+
+    # If we have a PIL image, just resize normally
+    if isinstance(im, Image.Image):
+        return im.resize(size=target_size, resample=resample)
+
+    # If we have NumPy, do one channel at a time
+    if im.ndim == 2:
+        if im.dtype in [np.uint8, np.float32]:
+            image = Image.fromarray(im)
+        elif np.issubdtype(im.dtype, np.integer):
+            image = Image.fromarray(im.astype(np.int32), mode='I')
         else:
-            mode = None
-        # TODO: Check if channel counts other than 1, 3, 4 supported
-        image = Image.fromarray(im, mode=mode)
+            image = Image.fromarray(im.astype(np.float32), mode='F')
+        image = _resize(image, target_size=target_size, resample=resample)
+        return np.asarray(image).astype(im.dtype)
     else:
-        image = im
-    image = image.resize(size=target_size, resample=resample)
-    return np.asarray(image) if do_convert else image
+        im_channels = [
+            _resize(im[:, :, c, ...], target_size=target_size, resample=resample)
+            for c in range(im.shape[2])
+            ]
+        if len(im_channels) == 1:
+            return np.atleast_3d(im_channels[0])
+        return np.stack(im_channels, axis=-1)
 
 
 
