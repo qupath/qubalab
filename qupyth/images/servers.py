@@ -419,7 +419,7 @@ class IccProfileServer(WrappedImageServer):
         try:
             if isinstance(icc_profile, ImageCms.ImageCmsProfile) or isinstance(icc_profile, bytes):
                 srgb = ImageCms.createProfile("sRGB")
-                icc_profile = ImageCms.buildTransformFromOpenProfiles(srgb, icc_profile, "RGB", "RGB")
+                icc_profile = ImageCms.buildTransformFromOpenProfiles(icc_profile, srgb, "RGB", "RGB")
 
             if isinstance(icc_profile, ImageCms.ImageCmsTransform):
                 self._icc = icc_profile
@@ -467,12 +467,12 @@ def _get_icc_bytes(path) -> bytes:
         Image.MAX_IMAGE_PIXELS = max_pixels
 
 
-def _read_icc(path) -> ImageCms.ImageCmsTransform:
+def _read_icc(path, **kwargs) -> ImageCms.ImageCmsTransform:
     icc_bytes = _get_icc_bytes(path)
     if icc_bytes is None:
         return None
     srgb = ImageCms.createProfile("sRGB")
-    return ImageCms.buildTransformFromOpenProfiles(srgb, icc_bytes, "RGB", "RGB")
+    return ImageCms.buildTransformFromOpenProfiles(icc_bytes, srgb, "RGB", "RGB", **kwargs)
 
 
 
