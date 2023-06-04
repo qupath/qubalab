@@ -1,7 +1,11 @@
-from . import ImageServer, ImageServerMetadata, Region2D, ImageShape
-from .servers import _validate_block, PixelCalibration, PixelLength
+import numbers
 
-from typing import Tuple, Union, Dict, Any
+import dask.array
+
+from . import ImageServer, ImageServerMetadata, Region2D, ImageShape
+from .servers import _validate_block, PixelCalibration, PixelLength, _get_level
+
+from typing import Tuple, Union, Dict, Any, Iterable
 from pathlib import Path
 from aicsimageio import AICSImage
 
@@ -64,8 +68,36 @@ class AICSImageIoServer(ImageServer):
         return im[t, z, y:y + height, x:x + width, ...].compute()
 
 
-    def get_dask_arrays(self):
-        return tuple([da[1] for da in self._dask_arrays])
+    def get_dask_arrays(self, downsamples: Union[float, Iterable[float]] = None) -> Tuple[dask.array.Array, ...]:
+        if downsamples is None:
+            return tuple([da[1] for da in self._dask_arrays])
+        elif isinstance(downsamples, numbers.Number):
+            downsample = downsamples
+            level = _get_level(self.downsamples, downsample)
+            array = self._dask_arrays[level][1]
+            rescale = downsample / self.downsamples[level]
+            if rescale == 1.0:
+                return (array,)
+            else:
+                # Couldn't find an easy resizing method for dask arrays... so we try this instead
+                from dask_image.ndinterp import affine_transform
+                from dask import array as da
+                array = da.asarray(array)
+                transform = np.eye(array.ndim)
+                transform[2, 2] = rescale
+                transform[3, 3] = rescale
+                output_width = int(array.shape[3] / rescale)
+                output_height = int(array.shape[2] / rescale)
+                # Not sure why rechunking is necessary here, but it is
+                array = da.rechunk(array)
+                array = affine_transform(array,
+                                         transform,
+                                         order=1,
+                                         output_chunks=array.chunks)
+                return (array[..., :output_height, :output_width, :],)
+        else:
+            return tuple([self.get_dask_arrays(d)[0] for d in downsamples])
+
 
     def close(self):
         self._image.close()

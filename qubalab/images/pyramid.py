@@ -268,7 +268,8 @@ def _open_zarr_group(image: Union[ImageServer, PyramidStore], **kwargs):
     return zarr.open(store, mode='r')
 
 
-def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=False, squeeze=True, **kwargs):
+def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=False, squeeze=True,
+            downsamples: Union[float, Iterable[float]] = None, **kwargs):
     """
     Create one or more dask arrays for an ImageServer.
     This provides a more pythonic/numpy-esque method to extract pixel data at any arbitrary resolution.
@@ -276,8 +277,10 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
     Internally, the conversion uses a Zarr group, opened in read-only mode.
 
     :param image:  the image containing pixels
+    :param rgb:    optionally specify that the image is RGB; default is None (auto-detect)
     :param as_napari_kwargs:  if True, wrap the output in a dict that can be passed to napari.view_image.
-    :param squeeze: if True, remove singleton z, t and c dimensions
+    :param squeeze: if True, remove singleton z, t and c dimensions. This is only used if the image does not provide
+                    dask arrays directly.
     :param kwargs: passed to PyramidStore if the input is an ImageServer
     :return:       a single dask array if the keyword argument 'downsamples' is a number, or a tuple of dask arrays if
                    'downsamples' is an iterable; if as_napari_kwargs this is passed as the 'data' value in a dict
@@ -286,11 +289,11 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
     pyramid = None
     # If we have an ImageServer that can directly supply dask arrays, use those
     if isinstance(image, ImageServer):
+        if rgb is None:
+            rgb = image.is_rgb
         try:
-            pyramid = image.get_dask_arrays()
-            print(f'Dimensions: {pyramid[0].ndim}')
+            pyramid = image.get_dask_arrays(downsamples=downsamples)
             if pyramid[0].ndim == 5:
-                rgb = image.is_rgb
                 dims = 'tzyxc'
                 cal = image.metadata.pixel_calibration
                 scale = [1, cal.length_z.length, cal.length_y.length, cal.length_x.length, 1]
@@ -305,9 +308,7 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
         if isinstance(image, PyramidStore):
             store = image
         elif isinstance(image, ImageServer):
-            store = PyramidStore(image, squeeze=squeeze, **kwargs)
-            if rgb is None:
-                rgb = image.is_rgb
+            store = PyramidStore(image, squeeze=squeeze, downsamples=downsamples, **kwargs)
         else:
             raise ValueError(f'Unable to convert object of type {type(image)} to Dask array - '
                              f'only ImageServer and PyramidStore supported')
@@ -323,8 +324,8 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
 
     # If we requested a single downsample, then return it directly (not in a tuple)
     data = pyramid
-    if len(pyramid) == 1 and 'downsamples' in kwargs:
-        if not isinstance(kwargs['downsamples'], Iterable) and kwargs['downsamples'] is not None:
+    if len(pyramid):
+        if not isinstance(downsamples, Iterable) and downsamples is not None:
             data = pyramid[0]
 
     # Return either the array, or napari kwargs for display

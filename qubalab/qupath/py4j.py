@@ -2,12 +2,14 @@ from ..images import ImageServer, PixelLength, PixelCalibration, ImageServerMeta
 from ..images.servers import _validate_block, _resize
 
 from dataclasses import astuple, dataclass
-from typing import List, Tuple
+from typing import List, Tuple, Iterable, Union
 from py4j.java_gateway import JavaGateway, JavaObject, GatewayParameters
 
 from imageio.v3 import imread
 from imageio import volread
 import numpy as np
+
+from dask import array as da
 
 from urllib.parse import urlparse, unquote
 
@@ -279,6 +281,7 @@ def add_objects(features, image_data: JavaObject=None, gateway: JavaGateway=None
     image_data = _get_java_image_data(gateway=gateway, image_data=image_data)
     hierarchy = image_data.getHierarchy()
     gateway
+    raise NotImplementedError("Not implemented yet, sorry!")
 
 
 def get_server(input = None) -> ImageServer:
@@ -291,6 +294,15 @@ def get_server(input = None) -> ImageServer:
     return None if server is None else QuPathServer(
         gateway = _gateway_or_default(),
         server_obj = server)
+
+
+def get_dask_array(input = None, downsamples: Union[float, Iterable[float]] = None, **kwargs) -> da.Array:
+    """
+    Get one or more dask arrays corresponding to the image currently open in QuPath.
+    """
+    server = get_server(input)
+    from ..images import to_dask
+    return None if server is None else to_dask(server, downsamples=downsamples, **kwargs)
 
 import geojson
 from geojson import Feature

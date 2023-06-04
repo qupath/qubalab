@@ -18,4 +18,5 @@ dependencies:
   - jupyter
   - matplotlib
   - pytest
+  - dask-image
   - bioformats_jar # Optional! May be used with AICSImageIO

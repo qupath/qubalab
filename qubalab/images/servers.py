@@ -187,20 +187,6 @@ class ImageServer(ABC):
         self._channels = None
         self._resize_method = resize_method
 
-    def _level_for_downsample(self, downsample: float):
-        downsamples = self.downsamples
-        if downsample <= downsamples[0]:
-            return 0
-        elif downsample >= downsamples[-1]:
-            return len(downsamples) - 1
-        else:
-            # Allow a little bit of a tolerance because OpenSlide calculates downsamples
-            # using the ratio of image dimensions... and can end up a little bit off
-            for level, d in reversed(list(enumerate(downsamples))):
-                if downsample >= d - 1e-3:
-                    return level
-        return 0
-
     def read_region(self,
                     region: Union[Region2D, Tuple[int, ...]] = None,
                     downsample: float = None,
