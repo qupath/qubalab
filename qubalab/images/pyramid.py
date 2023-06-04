@@ -86,10 +86,10 @@ class PyramidStore(BaseStore):
                 tile = self._server.read_block(level=server_level, block=block)
             else:
                 # If our downsample value is anything else, use read_region to auto-apply whatever resizing we need (shouldn't be used!)
-                x = int(cx * tile_width * downsample),
-                y = int(cy * tile_height * downsample),
-                w = int(min(full_width - x, round(tile_width * downsample))),
-                h = int(min(full_height - y, round(tile_height * downsample))),
+                x = int(round(cx * tile_width * downsample))
+                y = int(round(cy * tile_height * downsample))
+                w = int(min(self._server.width - x, round(tile_width * downsample)))
+                h = int(min(self._server.height - y, round(tile_height * downsample)))
                 region = Region2D(downsample=downsample, x=x, y=y, width=w, height=h, z=cz, t=ct)
                 tile = self._server.read_region(region=region)
 

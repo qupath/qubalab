@@ -1,0 +1,19 @@
+name: qubalab
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - dask[array]
+  - zarr
+  - numpy
+  - Shapely
+  - imageio
+  - rasterio
+  - tiffslide
+  - aicsimageio
+  - napari[all]
+  - scikit-image
+  - py4j
+  - jupyter
+  - matplotlib
+  - pytest

@@ -1,6 +1,6 @@
 import pytest
 
-from qupyth.images.servers import ImageShape
+from qubalab.images.servers import ImageShape
 
 from ..images import *
 

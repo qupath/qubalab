@@ -1,25 +1,26 @@
 from setuptools import setup
 
 requirements = [
-    "dask[array]>=2021.4.1",
-    "zarr>=2.11.0",
+    "dask[array]",
+    "zarr",
     "numpy",
-    "Shapely>=1.8.4",
+    "Shapely",
     "imageio",
     "tiffslide",
-    "imagecodecs==2021.4.28"
+    "aicsimageio"
 #    "matplotlib"
 ]
 
 setup(
-    name="QuPyth",
-    version="0.0.1-snapshot",
+    name="QuBaLab",
+    version="0.0.1.dev0",
     author="Pete Bankhead",
     description="A laboratory for exploring quantitative bioimage analysis in Python",
-    long_description="Not QuPath... but very friendly with QuPath",
+    long_description="QuBaLab isn't QuPath... but it's very friendly with QuPath",
     install_requires=requirements,
     extras_require={
         "openslide": ["openslide-python"],
-        "qupath": ["py4j>=0.10.9.0"]
+        "qupath": ["py4j>=0.10.9.0"],
+        "test": ["pytest"]
     }
 )
