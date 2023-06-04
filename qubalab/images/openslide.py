@@ -17,6 +17,7 @@ except ImportError as e:
 import numpy as np
 from pathlib import Path
 
+
 class OpenSlideServer(ImageServer):
 
     def __init__(self, path: str, strip_alpha=True, single_channel=False, limit_bounds=True, **kwargs):
@@ -48,9 +49,9 @@ class OpenSlideServer(ImageServer):
         pixel_height = self._osr.properties.get('openslide.mpp-y')
         if pixel_width is not None and pixel_height is not None:
             cal = PixelCalibration(
-                length_x = PixelLength.create_microns(float(pixel_width)),
-                length_y = PixelLength.create_microns(float(pixel_height))
-                )
+                length_x=PixelLength.create_microns(float(pixel_width)),
+                length_y=PixelLength.create_microns(float(pixel_height))
+            )
         else:
             cal = PixelCalibration()
 
@@ -60,7 +61,7 @@ class OpenSlideServer(ImageServer):
         else:
             w = self._bounds[3]
             h = self._bounds[2]
-            shapes = tuple(ImageShape(x=int(w/d), y=int(h/d), c=n_channels) for d in self._osr.level_downsamples)
+            shapes = tuple(ImageShape(x=int(w / d), y=int(h / d), c=n_channels) for d in self._osr.level_downsamples)
 
         return ImageServerMetadata(
             path=self._path,

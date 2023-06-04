@@ -5,6 +5,7 @@ requirements = [
     "zarr",
     "numpy",
     "Shapely",
+    "geojson",
     "imageio",
     "tiffslide",
     "aicsimageio"

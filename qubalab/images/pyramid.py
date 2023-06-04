@@ -32,7 +32,6 @@ class PyramidStore(BaseStore):
         of pyramidal images.
         In general, if the desired outcome is something array-like it is best to use to_dask instead.
 
-
         :param server:
         :param tile_size:
         :param name:
@@ -41,14 +40,14 @@ class PyramidStore(BaseStore):
         """
         super().__init__()
         self._server = server
-        
+
         if not tile_size:
             tile_size = (1024, 1024)
         elif isinstance(tile_size, (int, float)):
             tile_size = (int(tile_size), int(tile_size))
         self._tile_width = tile_size[0]
         self._tile_height = tile_size[1]
-        
+
         if downsamples is None:
             downsamples = server.downsamples
         elif not isinstance(downsamples, Iterable):
@@ -59,7 +58,6 @@ class PyramidStore(BaseStore):
         self._downsamples = downsamples
         self._store = self._build_store(downsamples=downsamples, name=name, squeeze=squeeze)
 
-
     def __getitem__(self, key: str):
         # Check if key is in metadata
         if key in self._store:
@@ -67,7 +65,7 @@ class PyramidStore(BaseStore):
         try:
             # We should have a chunk path, with a chunk level
             ct, cz, cy, cx, level = self._parse_chunk_path(key)
-                
+
             # Convert the chunk level a downsample value & also to a server level
             downsample = self._downsamples[level]
             full_width = int(self._server.width / downsample)
@@ -109,7 +107,7 @@ class PyramidStore(BaseStore):
                 tile = np.moveaxis(tile, -1, 0)
             elif tile.ndim > 3:
                 raise ValueError(f'ndim > 3 not supported! Found shape {tile.shape}')
-            
+
             return tile.tobytes()
         except ArgumentError as err:
             # Can occur if trying to read a closed slide
@@ -143,30 +141,27 @@ class PyramidStore(BaseStore):
         pass
 
     def __setitem__(self, key, val):
-         raise RuntimeError("__setitem__ not implemented")
+        raise RuntimeError("__setitem__ not implemented")
 
     def __delitem__(self, key):
-         raise RuntimeError("__setitem__ not implemented")
+        raise RuntimeError("__setitem__ not implemented")
 
     def keys(self):
         return self._store.keys()
-
 
     def _parse_chunk_path(self, path: str) -> Tuple[int, int, int, int, int]:
         level, chunk = path.split('/')
         chunks = tuple(map(int, chunk.split('.')))
         return tuple([self._extract_chunk_path(chunks, 't'),
-                    self._extract_chunk_path(chunks, 'z'),
-                    chunks[-2],
-                    chunks[-1],
-                    int(level)])
+                      self._extract_chunk_path(chunks, 'z'),
+                      chunks[-2],
+                      chunks[-1],
+                      int(level)])
 
     def _extract_chunk_path(self, lengths: Tuple[int, ...], target: str):
         if target in self._dims:
             return lengths[self._dims.index(target)]
         return 0
-
-
 
     def _build_store(self, downsamples: Iterable[float], name: str = None, squeeze=True) -> Dict[str, bytes]:
         """
@@ -179,7 +174,7 @@ class PyramidStore(BaseStore):
 
         if name is None:
             name = server.name
-        
+
         store = dict()
 
         for ii, downsample in enumerate(downsamples):
@@ -204,10 +199,10 @@ class PyramidStore(BaseStore):
             axes = [
                 dict(name='t', type='time'),
                 dict(name='c', type='channel'),
-                dict(name='z', type='space', unit=cal.length_z.unit),            
-                dict(name='y', type='space', unit=cal.length_y.unit),            
-                dict(name='x', type='space', unit=cal.length_x.unit),            
-                ]
+                dict(name='z', type='space', unit=cal.length_z.unit),
+                dict(name='y', type='space', unit=cal.length_y.unit),
+                dict(name='x', type='space', unit=cal.length_x.unit),
+            ]
             self._dims = ''.join(getter('tczyx'))
 
             # Write main info for highest-resolution
@@ -216,7 +211,7 @@ class PyramidStore(BaseStore):
                 datasets = []
                 # Store scales for later
                 self._scale = tuple(getter([1.0, 1.0, cal.length_z.length, cal.length_y.length, cal.length_x.length]))
-                
+
                 # Compute scales for downsample (for OME-Zarr in the future)
                 for di, d in enumerate(downsamples):
                     scale_for_level = [s for s in self._scale]
@@ -228,10 +223,10 @@ class PyramidStore(BaseStore):
                 root_attrs = dict(
                     multiscales=[
                         dict(
-                            name = name,
-                            datasets = datasets,
-                            version = 0.4,
-                            axes = getter(axes)
+                            name=name,
+                            datasets=datasets,
+                            version=0.4,
+                            axes=getter(axes)
                         )
                     ]
                 )
@@ -242,14 +237,13 @@ class PyramidStore(BaseStore):
 
             init_array(
                 store,
-                path = str(ii),
-                shape = getter(shape),
-                chunks = getter(chunks),
-                dtype = server.dtype,
-                compressor = None
+                path=str(ii),
+                shape=getter(shape),
+                chunks=getter(chunks),
+                dtype=server.dtype,
+                compressor=None
             )
         return store
-
 
 
 def _open_zarr_group(image: Union[ImageServer, PyramidStore], **kwargs):
@@ -274,7 +268,6 @@ def _open_zarr_group(image: Union[ImageServer, PyramidStore], **kwargs):
     return zarr.open(store, mode='r')
 
 
-
 def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=False, squeeze=True, **kwargs):
     """
     Create one or more dask arrays for an ImageServer.
@@ -290,22 +283,43 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
                    'downsamples' is an iterable; if as_napari_kwargs this is passed as the 'data' value in a dict
     """
 
-    if isinstance(image, PyramidStore):
-        store = image
-    elif isinstance(image, ImageServer):
-        store = PyramidStore(image, squeeze=squeeze, **kwargs)
-        if rgb is None:
-            rgb = image.is_rgb
-    else:
-        raise ValueError(f'Unable to convert object of type {type(image)} to Dask array - '
-                         f'only ImageServer and PyramidStore supported')
-    
-    grp = _open_zarr_group(store, squeeze=squeeze, **kwargs)
-    multiscales = grp.attrs["multiscales"][0]
-    pyramid = tuple(da.from_zarr(store, component=d["path"]) for d in multiscales["datasets"])
+    pyramid = None
+    # If we have an ImageServer that can directly supply dask arrays, use those
+    if isinstance(image, ImageServer):
+        try:
+            pyramid = image.get_dask_arrays()
+            print(f'Dimensions: {pyramid[0].ndim}')
+            if pyramid[0].ndim == 5:
+                rgb = image.is_rgb
+                dims = 'tzyxc'
+                cal = image.metadata.pixel_calibration
+                scale = [1, cal.length_z.length, cal.length_y.length, cal.length_x.length, 1]
+            else:
+                print('Cannot create dask arrays directly from ImageServer - falling back to Zarr')
+                pyramid = None
+        except:
+            pyramid = None
 
-    if rgb:
-        pyramid = tuple(np.moveaxis(p, 0, -1) for p in pyramid)
+    # If that didn't work, try to sort out our own dask arrays
+    if pyramid is None:
+        if isinstance(image, PyramidStore):
+            store = image
+        elif isinstance(image, ImageServer):
+            store = PyramidStore(image, squeeze=squeeze, **kwargs)
+            if rgb is None:
+                rgb = image.is_rgb
+        else:
+            raise ValueError(f'Unable to convert object of type {type(image)} to Dask array - '
+                             f'only ImageServer and PyramidStore supported')
+
+        grp = _open_zarr_group(store, squeeze=squeeze, **kwargs)
+        multiscales = grp.attrs["multiscales"][0]
+        pyramid = tuple(da.from_zarr(store, component=d["path"]) for d in multiscales["datasets"])
+        dims = store._dims
+        scale = [s for s in store._scale]
+
+        if rgb:
+            pyramid = tuple(np.moveaxis(p, 0, -1) for p in pyramid)
 
     # If we requested a single downsample, then return it directly (not in a tuple)
     data = pyramid
@@ -316,16 +330,14 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
     # Return either the array, or napari kwargs for display
     if as_napari_kwargs:
         c_axis = None
-        dims = store._dims
-        scale = [s for s in store._scale]
         colormap = None
         names = None
         if isinstance(image, ImageServer):
             names = image.name
         # Make channels-last if RGB
         if 'c' in dims:
-            c_axis = store._dims.index('c')
-            dims = dims.replace('c', '') # Currently (Napari 0.4.16) need to remove c when specifying index
+            c_axis = dims.index('c')
+            dims = dims.replace('c', '')  # Currently (Napari 0.4.16) needs to remove c when specifying index
             scale.pop(c_axis)
             # Need to remove c_axis again if we have an RGB image
             if rgb:
@@ -333,7 +345,7 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
             elif isinstance(image, ImageServer):
                 colormap = [c.color for c in image.channels]
                 names = [c.name for c in image.channels]
-        return dict(data=data, rgb=rgb, channel_axis=c_axis, 
+        return dict(data=data, rgb=rgb, channel_axis=c_axis,
                     axis_labels=tuple(dims), scale=scale,
                     colormap=colormap, name=names)
     else:
