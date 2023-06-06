@@ -28,9 +28,13 @@ class PyramidStore(BaseStore):
         """
         Create a Zarr-compatible mapping for a multiresolution image reading pixels from an ImageServer.
 
-        Note that the details of this implementation may change to better align with any future standardized representation
-        of pyramidal images.
+        Note that the details of this implementation may change to better align with any future standardized
+        representation of pyramidal images.
         In general, if the desired outcome is something array-like it is best to use to_dask instead.
+
+        TODO: See to_dask docstring for more info; this can likely be simplified to use levels from the ImageServer
+              rather than arbitary downsamples, and any additional correction for downsampling can be applied by
+              resizing the dask array itself.
 
         :param server:
         :param tile_size:
@@ -276,6 +280,16 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
 
     Internally, the conversion uses a Zarr group, opened in read-only mode.
 
+    TODO: This is old code that could use an arbitrary downsample.
+          ImageServer.to_dask() should be used instead, and this code should be replaced by an internal implementation
+          that can be used by ImageServer if needed.
+          Any new implementation should standardize the returned dimensions in the same style as AICSImageIO
+          (which this code and PyramidStore doesn't do).
+          Also, we can restrict the ImageServer to return fixed levels (not arbitrary downsamples) to simplify the
+          implementation of PyramidStore, but only **IF** we are able to resize the resulting dask array later in an
+          efficient way (currently we use Dask's affine_transform, which has horrible performance at the scale of whole
+          slide images).
+
     :param image:  the image containing pixels
     :param rgb:    optionally specify that the image is RGB; default is None (auto-detect)
     :param as_napari_kwargs:  if True, wrap the output in a dict that can be passed to napari.view_image.
@@ -286,41 +300,24 @@ def to_dask(image: Union[ImageServer, PyramidStore], rgb=None, as_napari_kwargs=
                    'downsamples' is an iterable; if as_napari_kwargs this is passed as the 'data' value in a dict
     """
 
-    pyramid = None
-    # If we have an ImageServer that can directly supply dask arrays, use those
-    if isinstance(image, ImageServer):
+    if isinstance(image, PyramidStore):
+        store = image
+    elif isinstance(image, ImageServer):
+        store = PyramidStore(image, squeeze=squeeze, downsamples=downsamples, **kwargs)
         if rgb is None:
             rgb = image.is_rgb
-        try:
-            pyramid = image.get_dask_arrays(downsamples=downsamples)
-            if pyramid[0].ndim == 5:
-                dims = 'tzyxc'
-                cal = image.metadata.pixel_calibration
-                scale = [1, cal.length_z.length, cal.length_y.length, cal.length_x.length, 1]
-            else:
-                print('Cannot create dask arrays directly from ImageServer - falling back to Zarr')
-                pyramid = None
-        except:
-            pyramid = None
+    else:
+        raise ValueError(f'Unable to convert object of type {type(image)} to Dask array - '
+                         f'only ImageServer and PyramidStore supported')
 
-    # If that didn't work, try to sort out our own dask arrays
-    if pyramid is None:
-        if isinstance(image, PyramidStore):
-            store = image
-        elif isinstance(image, ImageServer):
-            store = PyramidStore(image, squeeze=squeeze, downsamples=downsamples, **kwargs)
-        else:
-            raise ValueError(f'Unable to convert object of type {type(image)} to Dask array - '
-                             f'only ImageServer and PyramidStore supported')
+    grp = _open_zarr_group(store, squeeze=squeeze, **kwargs)
+    multiscales = grp.attrs["multiscales"][0]
+    pyramid = tuple(da.from_zarr(store, component=d["path"]) for d in multiscales["datasets"])
+    dims = store._dims
+    scale = [s for s in store._scale]
 
-        grp = _open_zarr_group(store, squeeze=squeeze, **kwargs)
-        multiscales = grp.attrs["multiscales"][0]
-        pyramid = tuple(da.from_zarr(store, component=d["path"]) for d in multiscales["datasets"])
-        dims = store._dims
-        scale = [s for s in store._scale]
-
-        if rgb:
-            pyramid = tuple(np.moveaxis(p, 0, -1) for p in pyramid)
+    if rgb:
+        pyramid = tuple(np.moveaxis(p, 0, -1) for p in pyramid)
 
     # If we requested a single downsample, then return it directly (not in a tuple)
     data = pyramid

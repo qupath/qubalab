@@ -330,28 +330,3 @@ def get_path_objects(input = None, object_type: str = None, gateway = None) -> L
     feature_list = gateway.entry_point.toGeoJson(path_objects)
     return [geojson.loads(f) for f in feature_list]
 
-
-
-"""
-class HierarchyWrapper:
-    pass
-
-class ImageDataWrapper:
-
-    def __init__(self):
-        pass
-
-    def get_hierarchy() -> HierarchyWrapper:
-        pass
-
-    def get_server() -> ImageServer:
-        pass
-"""
-
-
-# import geojson
-
-# class PathObject(geojson.Feature):
-
-#     def __init__(self, **kwargs):
-#         super.__init__(self, **kwargs)

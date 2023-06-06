@@ -1,6 +1,4 @@
-import numbers
-
-import dask.array
+from dask import array as da
 
 from . import ImageServer, ImageServerMetadata, Region2D, ImageShape
 from .servers import _validate_block, PixelCalibration, PixelLength, _get_level
@@ -35,14 +33,29 @@ class AICSImageIoServer(ImageServer):
         metadata = self.metadata
         dask_arrays = []
         for level in range(len(metadata.shapes)):
-            image = AICSImage(path, dask_tiles=True, **aics_kwargs)
-            image.set_scene(image.scenes[self._scene + level])
-            if self.is_rgb:
-                im = image.get_image_dask_data('TZYXS', C=0)
-            elif self.n_channels == 1:
-                im = image.get_image_dask_data('TZYX', C=0)
+            # TODO: Check if necessary... because Bio-Formats isn't threadsafe, and AICSImageIO doesn't really support
+            #       multiple resolutions yet, we currently create a new reader for each level to avoid needing to
+            #       switch between different 'scenes' later.
+            #       (Note that we really want resolutions, but AICSImageIO isn't aware enough of them so we're stuck
+            #       with scenes for now)
+            image = self._image if level == 0 else AICSImage(path, dask_tiles=True, **aics_kwargs)
+            scene = image.scenes[self._scene + level]
+            image.set_scene(scene)
+            print(f'Initializing scene: {scene}')
+            # TODO: Consider if we should switch to returning an xarray
+            #       For exploration purposes, here's some code to return an xarray and update the X and Y coords.
+            use_xarray = False
+            if use_xarray:
+                im = image.get_xarray_dask_stack(select_scenes=[scene])[0]
+                im = im.assign_coords(
+                    coords=dict(
+                        X=np.arange(0, im['X'].size) * self.downsamples[level],
+                        Y=np.arange(0, im['Y'].size) * self.downsamples[level])
+                )
             else:
-                im = image.get_image_dask_data('TZYXC')
+                im = image.get_image_dask_data()
+            # TODO: Check if necessary... don't want any required reader garbage collected, but may need to close
+            #       so here we return a reader along with the dask array
             dask_arrays.append((image, im))
         self._dask_arrays = dask_arrays
 
@@ -65,42 +78,15 @@ class AICSImageIoServer(ImageServer):
         from dataclasses import astuple
         _, x, y, width, height, z, t = astuple(_validate_block(block))
         im = self._dask_arrays[level][1]
-        return im[t, z, y:y + height, x:x + width, ...].compute()
+        return im[t, :, z, y:y + height, x:x + width, ...].compute()
 
-
-    def get_dask_arrays(self, downsamples: Union[float, Iterable[float]] = None) -> Tuple[dask.array.Array, ...]:
-        if downsamples is None:
-            return tuple([da[1] for da in self._dask_arrays])
-        elif isinstance(downsamples, numbers.Number):
-            downsample = downsamples
-            level = _get_level(self.downsamples, downsample)
-            array = self._dask_arrays[level][1]
-            rescale = downsample / self.downsamples[level]
-            if rescale == 1.0:
-                return (array,)
-            else:
-                # Couldn't find an easy resizing method for dask arrays... so we try this instead
-                from dask_image.ndinterp import affine_transform
-                from dask import array as da
-                array = da.asarray(array)
-                transform = np.eye(array.ndim)
-                transform[2, 2] = rescale
-                transform[3, 3] = rescale
-                output_width = int(array.shape[3] / rescale)
-                output_height = int(array.shape[2] / rescale)
-                # Not sure why rechunking is necessary here, but it is
-                array = da.rechunk(array)
-                array = affine_transform(array,
-                                         transform,
-                                         order=1,
-                                         output_chunks=array.chunks)
-                return (array[..., :output_height, :output_width, :],)
-        else:
-            return tuple([self.get_dask_arrays(d)[0] for d in downsamples])
-
+    def level_to_dask(self, level: int = 0) -> da.Array:
+        return self._dask_arrays[level][1]
 
     def close(self):
         self._image.close()
+        for image, _ in self._dask_arrays:
+            image.close()
 
 
 def _get_shapes(image: AICSImage, first_scene: int = 0) -> Tuple[ImageShape, ...]:
@@ -127,6 +113,10 @@ def _get_current_scene_shape(image: AICSImage) -> ImageShape:
 
 
 def _is_lower_resolution(base_shape: ImageShape, series_shape: ImageShape) -> bool:
+    """
+    Calculate if the series shape is a lower resolution than the base shape.
+    This involves a bit of guesswork, but it's needed for so long as AICSImageIO doesn't properly support pyramids.
+    """
     if base_shape.z == series_shape.z and \
             base_shape.t == series_shape.t and \
             base_shape.c == series_shape.c:

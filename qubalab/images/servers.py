@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union, Tuple
+from typing import Union, Tuple, Iterable, Optional
 from dataclasses import dataclass
 from PIL import Image, ImageCms
 
@@ -73,16 +73,32 @@ class PixelLength:
         return self.length == 1.0 and self.unit == 'pixels'
 
     @staticmethod
+    def create_default() -> 'PixelLength':
+        """
+        Create a PixelLength with a default value of 1 pixel.
+        """
+        return PixelLength(length=1.0, unit='pixels')
+
+    @staticmethod
     def create_microns(length: float) -> 'PixelLength':
+        """
+        Create a PixelLength with a unit of micrometers (µm).
+        """
         return PixelLength(length=length, unit='micrometer')
+
+    @staticmethod
+    def create_unknown(length: float) -> 'PixelLength':
+        """
+        Create a PixelLength with an unknown unit.
+        """
+        return PixelLength(length=length, unit=None)
 
 
 @dataclass(frozen=True)
 class PixelCalibration:
     """
     Simple data class for storing pixel calibration information.
-    Currently only the width, height and depth (z-spacing) are supported 
-    and units are assumed to be the same in all dimensions.
+    Currently only the width, height and depth (z-spacing) are supported.
     """
     length_x: PixelLength = PixelLength()
     length_y: PixelLength = PixelLength()
@@ -132,6 +148,9 @@ class ImageShape:
     """
     Simple data class to store an image shape.
     Useful to avoid ambiguity about dimension order.
+
+    TODO: This can potentially be removed if we use xarray instead of numpy arrays, and/or embrace AICSImageIO's
+          dimension ordering standard.
     """
     x: int
     y: int
@@ -147,10 +166,19 @@ class ImageShape:
 
 
 def _possible_downsample(x1: int, x2: int, downsample: float) -> bool:
+    """
+    Determine if an image dimension is what you'd expect after downsampling, and then flooring/rounding to decide
+    the new dimension.
+    """
     return int(int(x1 / downsample) * downsample) == x2 or int(round(int(round(x1 / downsample)) * downsample)) == x2
 
 
 def _estimate_downsample(main_shape: ImageShape, secondary_shape: ImageShape) -> float:
+    """
+    Estimate the downsample factor between two ImageShapes.
+    This is used to prefer values like 4 rather than 4.000345, which arise due to resolutions having to have
+    integer pixel dimensions.
+    """
     dx = main_shape.x / secondary_shape.x
     dy = main_shape.y / secondary_shape.y
     downsample = (dx + dy) / 2.0
@@ -212,6 +240,9 @@ class ImageServer(ABC):
         be different from the width and height passed as parameters.
         This may result in off-by-one issues due to user-expectation and rounding; these can be avoided by using
         :func:`read_block` if the downsample corresponds exactly to an existing level.
+
+        TODO: Consider if this should actually return a dask array or xarray
+        TODO: Consider if this should return using the dimension ordering of AICSImageIO
 
         :param region: a Region2D object or a tuple of integers (x, y, width, height, z, t)
         :param downsample: the downsample to use (ignored if a Region2D is provided)
@@ -313,6 +344,9 @@ class ImageServer(ABC):
 
         Note that this is a lower-level method than :func:`read_region`; usually you should use that method instead.
 
+        TODO: Consider if this should actually return a dask array or xarray
+        TODO: Consider if this should return using the dimension ordering of AICSImageIO
+
         :param level: the pyramidal level to read from
         :param block: a tuple of integers (x, y, width, height, z, t) specifying the block to read
         :return: a numpy array containing the requested pixels from the 2D region, in the order [y, x, c]
@@ -378,6 +412,69 @@ class ImageServer(ABC):
 
     def close(self):
         pass
+
+    def level_to_dask(self, level: int = 0):
+        """
+        Convert a single pyramid level to a dask array.
+
+        :param level: the pyramid level (0 is full resolution)
+        """
+        pass
+
+    def to_dask(self, downsample: Union[float, Iterable[float]] = None):
+        """
+        Convert this image to one or more dask arrays, at any arbitary downsample factor.
+
+        TODO: Consider API that creates downsamples from requested pixel sizes, since these are more intuitive.
+
+        :param: downsample the downsample factor to use, or a list of downsample factors to use.
+                If None, all available resolutions will be used.
+        :return: a dask array or tuple of dask arrays, depending upon whether one or more downsample factors are required
+        """
+
+        if downsample is None:
+            if self.n_resolutions == 1:
+                return self.level_to_dask(level=0)
+            else:
+                return tuple([self.level_to_dask(level=level) for level in range(self.n_resolutions)])
+
+        if isinstance(downsample, Iterable):
+            return tuple([self.to_dask(downsample=float(d)) for d in downsample])
+
+        level = _get_level(self.downsamples, downsample)
+        array = self.level_to_dask(level=level)
+
+        # Check if we need to resize the array
+        # Don't rely on rescale to be exactly equal to 1.0, and instead check if we need a different output size
+        rescale = downsample / self.downsamples[level]
+        input_width = array.shape[3]
+        input_height = array.shape[2]
+        output_width = int(round(input_width / rescale))
+        output_height = int(round(input_height / rescale))
+        if input_width == output_width and input_height == output_height:
+            return array
+
+        # Couldn't find an easy resizing method for dask arrays... so we try this instead
+
+        # TODO: Urgently need something better! Performance is terrible for large images - all pixels requested
+        #       upon first compute (even for a small region), and then resized. This is not scalable.
+
+        if array.size > 10000:
+            print('Warning - calling affine_transform on a large dask array can be *very* slow')
+
+        from dask_image.ndinterp import affine_transform
+        from dask import array as da
+        array = da.asarray(array)
+        transform = np.eye(array.ndim)
+        transform[2, 2] = rescale
+        transform[3, 3] = rescale
+        # Not sure why rechunking is necessary here, but it is
+        array = da.rechunk(array)
+        array = affine_transform(array,
+                                 transform,
+                                 order=1,
+                                 output_chunks=array.chunks)
+        return array[:, :, :output_height, :output_width, ...]
 
 
 class WrappedImageServer(ImageServer):

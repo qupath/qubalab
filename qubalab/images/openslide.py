@@ -1,5 +1,8 @@
+import dask.array
+
 from . import ImageServer, ImageServerMetadata, PixelCalibration, PixelLength, ImageShape
 from .servers import _validate_block
+from .pyramid import to_dask as pyramid_to_dask
 
 from typing import Tuple
 from dataclasses import astuple
@@ -84,6 +87,13 @@ class OpenSlideServer(ImageServer):
         image.close()
         # Return image, stripping alpha/converting to single-channel if needed
         return im[:, :, :self.n_channels]
+
+    def level_to_dask(self, level: int = 0):
+        # TODO: This is using old code to convert to dask - should be updated (check pyramid.to_dask docstring)
+        array = pyramid_to_dask(self, downsamples=self.downsamples[level])
+        # We want AICSImageIO dimension ordering, therefore TCZYX[S], where S is for RGB samples
+        return dask.array.expand_dims(array, axis=(0, 1, 2))
+
 
     def close(self):
         self._osr.close()
