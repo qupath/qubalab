@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "qubalab"
+version = "0.0.1.dev0"
+description = "A laboratory for exploring quantitative bioimage analysis in Python"
+authors = ["Pete Bankhead", "Alan O'Callaghan"]
+license = "MIT"
+readme = "README.md"
+homepage = "qupath.github.io"
+repository = "https://github.com/qupath/qubalab"
+
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+dask = {extras = ["array"], version = "^2023.5.1"}
+zarr = "^2.14.2"
+shapely = "^2.0.1"
+geojson = "^3.0.1"
+imageio = "^2.31.0"
+rasterio = "^1.3.7"
+tiffslide = "^2.1.2"
+napari = {extras = ["all"], version = "^0.4.17"}
+scikit-image = "^0.21.0"
+py4j = "^0.10.9"
+bioformats-jar = "^2020.5.27"
+dask-image = "^2023.3.0"
+botocore = "^1.29.76"
+aicsimageio = "^4.11.0"
+
+[tool.poetry.dev-dependencies]
+jupyter = "^1.0.0"
+pytest = "^7.3.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
