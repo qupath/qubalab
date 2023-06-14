@@ -1,5 +1,8 @@
+import dask.array
+
 from . import ImageServer, ImageServerMetadata, PixelCalibration, PixelLength, ImageShape
 from .servers import _validate_block
+from .pyramid import to_dask as pyramid_to_dask
 
 from typing import Tuple
 from dataclasses import astuple
@@ -16,6 +19,7 @@ except ImportError as e:
 
 import numpy as np
 from pathlib import Path
+
 
 class OpenSlideServer(ImageServer):
 
@@ -48,9 +52,9 @@ class OpenSlideServer(ImageServer):
         pixel_height = self._osr.properties.get('openslide.mpp-y')
         if pixel_width is not None and pixel_height is not None:
             cal = PixelCalibration(
-                length_x = PixelLength.create_microns(float(pixel_width)),
-                length_y = PixelLength.create_microns(float(pixel_height))
-                )
+                length_x=PixelLength.create_microns(float(pixel_width)),
+                length_y=PixelLength.create_microns(float(pixel_height))
+            )
         else:
             cal = PixelCalibration()
 
@@ -60,7 +64,7 @@ class OpenSlideServer(ImageServer):
         else:
             w = self._bounds[3]
             h = self._bounds[2]
-            shapes = tuple(ImageShape(x=int(w/d), y=int(h/d), c=n_channels) for d in self._osr.level_downsamples)
+            shapes = tuple(ImageShape(x=int(w / d), y=int(h / d), c=n_channels) for d in self._osr.level_downsamples)
 
         return ImageServerMetadata(
             path=self._path,
@@ -83,6 +87,13 @@ class OpenSlideServer(ImageServer):
         image.close()
         # Return image, stripping alpha/converting to single-channel if needed
         return im[:, :, :self.n_channels]
+
+    def level_to_dask(self, level: int = 0):
+        # TODO: This is using old code to convert to dask - should be updated (check pyramid.to_dask docstring)
+        array = pyramid_to_dask(self, downsamples=self.downsamples[level])
+        # We want AICSImageIO dimension ordering, therefore TCZYX[S], where S is for RGB samples
+        return dask.array.expand_dims(array, axis=(0, 1, 2))
+
 
     def close(self):
         self._osr.close()

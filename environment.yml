@@ -1,0 +1,22 @@
+name: qubalab
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - dask[array]
+  - zarr
+  - numpy
+  - Shapely
+  - geojson
+  - imageio
+  - rasterio
+  - tiffslide
+  - aicsimageio
+  - napari[all]
+  - scikit-image
+  - py4j
+  - jupyter
+  - matplotlib
+  - pytest
+  - dask-image
+  - bioformats_jar # Optional! May be used with AICSImageIO

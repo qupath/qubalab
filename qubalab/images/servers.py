@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Union, Tuple
+from typing import Union, Tuple, Iterable, Optional
 from dataclasses import dataclass
 from PIL import Image, ImageCms
 
 import io
 import warnings
 import numpy as np
-
 
 
 @dataclass(frozen=True)
@@ -27,8 +26,7 @@ class Region2D:
     def scale_region(self, scale_factor: float = None) -> "Region2D":
         if scale_factor is None:
             return self.downsample_region()
-        return self.downsample_region(1.0/scale_factor)
-
+        return self.downsample_region(1.0 / scale_factor)
 
     def downsample_region(self, downsample: float = None) -> "Region2D":
         """
@@ -44,20 +42,19 @@ class Region2D:
 
         if downsample == 0:
             raise ValueError('Downsample cannot be 0!')
-        
+
         x = int(self.x / downsample)
         y = int(self.y / downsample)
         # Handle -1 for width & height, i.e. until the full image width
         if self.width == -1:
-            x2 = x-1
+            x2 = x - 1
         else:
             x2 = int(round(self.x + self.width) / downsample)
         if self.height == -1:
-            y2 = y-1
+            y2 = y - 1
         else:
             y2 = int(round(self.y + self.height) / downsample)
-        return Region2D(downsample=None, x=x, y=y, width=x2-x, height=y2-y, z=self.z, t=self.t)      
-
+        return Region2D(downsample=None, x=x, y=y, width=x2 - x, height=y2 - y, z=self.z, t=self.t)
 
 
 @dataclass(frozen=True)
@@ -76,16 +73,32 @@ class PixelLength:
         return self.length == 1.0 and self.unit == 'pixels'
 
     @staticmethod
+    def create_default() -> 'PixelLength':
+        """
+        Create a PixelLength with a default value of 1 pixel.
+        """
+        return PixelLength(length=1.0, unit='pixels')
+
+    @staticmethod
     def create_microns(length: float) -> 'PixelLength':
+        """
+        Create a PixelLength with a unit of micrometers (µm).
+        """
         return PixelLength(length=length, unit='micrometer')
+
+    @staticmethod
+    def create_unknown(length: float) -> 'PixelLength':
+        """
+        Create a PixelLength with an unknown unit.
+        """
+        return PixelLength(length=length, unit=None)
 
 
 @dataclass(frozen=True)
 class PixelCalibration:
     """
     Simple data class for storing pixel calibration information.
-    Currently only the width, height and depth (z-spacing) are supported 
-    and units are assumed to be the same in all dimensions.
+    Currently only the width, height and depth (z-spacing) are supported.
     """
     length_x: PixelLength = PixelLength()
     length_y: PixelLength = PixelLength()
@@ -135,6 +148,9 @@ class ImageShape:
     """
     Simple data class to store an image shape.
     Useful to avoid ambiguity about dimension order.
+
+    TODO: This can potentially be removed if we use xarray instead of numpy arrays, and/or embrace AICSImageIO's
+          dimension ordering standard.
     """
     x: int
     y: int
@@ -148,20 +164,32 @@ class ImageShape:
     def as_tuple(self, dims: str = 'tczyx'):
         return tuple(self.__getattribute__(d) for d in dims)
 
+
 def _possible_downsample(x1: int, x2: int, downsample: float) -> bool:
+    """
+    Determine if an image dimension is what you'd expect after downsampling, and then flooring/rounding to decide
+    the new dimension.
+    """
     return int(int(x1 / downsample) * downsample) == x2 or int(round(int(round(x1 / downsample)) * downsample)) == x2
 
+
 def _estimate_downsample(main_shape: ImageShape, secondary_shape: ImageShape) -> float:
+    """
+    Estimate the downsample factor between two ImageShapes.
+    This is used to prefer values like 4 rather than 4.000345, which arise due to resolutions having to have
+    integer pixel dimensions.
+    """
     dx = main_shape.x / secondary_shape.x
     dy = main_shape.y / secondary_shape.y
     downsample = (dx + dy) / 2.0
     downsample_round = round(downsample)
-    if _possible_downsample(main_shape.x, secondary_shape.x, downsample_round) and _possible_downsample(main_shape.y, secondary_shape.y, downsample_round):
+    if _possible_downsample(main_shape.x, secondary_shape.x, downsample_round) and _possible_downsample(main_shape.y,
+                                                                                                        secondary_shape.y,
+                                                                                                        downsample_round):
         if downsample != downsample_round:
             warnings.warn(f'Returning rounded downsample value {downsample_round} instead of {downsample}')
         return downsample_round
     return downsample
-
 
 
 @dataclass
@@ -187,21 +215,6 @@ class ImageServer(ABC):
         self._channels = None
         self._resize_method = resize_method
 
-    def _level_for_downsample(self, downsample: float):
-        downsamples = self.downsamples
-        if downsample <= downsamples[0]:
-            return 0
-        elif downsample >= downsamples[-1]:
-            return len(downsamples) - 1
-        else:
-            # Allow a little bit of a tolerance because OpenSlide calculates downsamples
-            # using the ratio of image dimensions... and can end up a little bit off
-            for level, d in reversed(list(enumerate(downsamples))):
-                if downsample >= d - 1e-3:
-                    return level
-        return 0
-
-
     def read_region(self,
                     region: Union[Region2D, Tuple[int, ...]] = None,
                     downsample: float = None,
@@ -213,16 +226,33 @@ class ImageServer(ABC):
                     t: int = 0
                     ) -> np.ndarray:
         """
-        Read pixels from any arbitrary image region, at any resolution.
-        Coordinates are provided in the coordinate space of the full-resolution image.
+        Read pixels from any arbitrary image region, at any resolution determined by the downsample.
 
-        This means that any downsample will applied, impacting the width/height of the returned image.
+        This method can be called in one of two ways: passing a region (as a Region2D object or a tuple of integers),
+        or passing x, y, width, height, z and t parameters separately. The latter can be more convenient and readable
+        when calling interactively, without the need to create a region object.
+        If a region is passed, the other parameters are ignored.
+
+        Important: coordinates and width/height values are given in the coordinate space of the full-resolution image,
+        and the downsample is applied before reading the region.
+
+        This means that, except when the downsample == 1.0, the width and height of the returned image will usually
+        be different from the width and height passed as parameters.
         This may result in off-by-one issues due to user-expectation and rounding; these can be avoided by using
         :func:`read_block` if the downsample corresponds exactly to an existing level.
 
-        :param region:
-        :param downsample:
-        :return:
+        TODO: Consider if this should actually return a dask array or xarray
+        TODO: Consider if this should return using the dimension ordering of AICSImageIO
+
+        :param region: a Region2D object or a tuple of integers (x, y, width, height, z, t)
+        :param downsample: the downsample to use (ignored if a Region2D is provided)
+        :param x: the x coordinate of the region to read
+        :param y: the y coordinate of the region to read
+        :param width: the width of the region to read
+        :param height: the height of the region to read
+        :param z: the z index of the region to read
+        :param t: the t index of the region to read
+        :return: a numpy array containing the requested pixels from the 2D region, in the order [y, x, c]
         """
 
         if region is None:
@@ -234,7 +264,7 @@ class ImageServer(ABC):
                 region = Region2D(*region)
             else:
                 region = Region2D((downsample,) + region)
-        
+
         if not isinstance(region, Region2D):
             raise ValueError('No valid region provided to read_region method')
 
@@ -242,7 +272,7 @@ class ImageServer(ABC):
         if region.width < 0 or region.height < 0:
             w = region.width if region.width >= 0 else self.width - region.x
             h = region.height if region.height >= 0 else self.height - region.y
-            region =  Region2D(downsample=region.downsample,
+            region = Region2D(downsample=region.downsample,
                               x=region.x, y=region.y, width=w, height=h, z=region.z, t=region.t)
 
         all_downsamples = self.downsamples
@@ -294,8 +324,9 @@ class ImageServer(ABC):
             elif self.is_rgb:
                 channels = _DEFAULT_CHANNEL_RGB
             else:
-                channels = [ImageChannel(f'Channel {ii+1}',
-                    _DEFAULT_CHANNEL_COLORS[ii % len(_DEFAULT_CHANNEL_COLORS)]) for ii in range(self.n_channels)]
+                channels = [ImageChannel(f'Channel {ii + 1}',
+                                         _DEFAULT_CHANNEL_COLORS[ii % len(_DEFAULT_CHANNEL_COLORS)]) for ii in
+                            range(self.n_channels)]
             self._channels = channels
         return self._channels
 
@@ -307,11 +338,18 @@ class ImageServer(ABC):
     def read_block(self, level: int, block: Tuple[int, ...]) -> np.ndarray:
         """
         Read a block of pixels from a specific level.
+
         Coordinates are provided in the coordinate space of the level, NOT the full-resolution image.
         This means that the returned image should have the width and height specified.
-        :param level:
-        :param block:
-        :return:
+
+        Note that this is a lower-level method than :func:`read_region`; usually you should use that method instead.
+
+        TODO: Consider if this should actually return a dask array or xarray
+        TODO: Consider if this should return using the dimension ordering of AICSImageIO
+
+        :param level: the pyramidal level to read from
+        :param block: a tuple of integers (x, y, width, height, z, t) specifying the block to read
+        :return: a numpy array containing the requested pixels from the 2D region, in the order [y, x, c]
         """
         pass
 
@@ -375,6 +413,68 @@ class ImageServer(ABC):
     def close(self):
         pass
 
+    def level_to_dask(self, level: int = 0):
+        """
+        Convert a single pyramid level to a dask array.
+
+        :param level: the pyramid level (0 is full resolution)
+        """
+        pass
+
+    def to_dask(self, downsample: Union[float, Iterable[float]] = None):
+        """
+        Convert this image to one or more dask arrays, at any arbitary downsample factor.
+
+        TODO: Consider API that creates downsamples from requested pixel sizes, since these are more intuitive.
+
+        :param: downsample the downsample factor to use, or a list of downsample factors to use.
+                If None, all available resolutions will be used.
+        :return: a dask array or tuple of dask arrays, depending upon whether one or more downsample factors are required
+        """
+
+        if downsample is None:
+            if self.n_resolutions == 1:
+                return self.level_to_dask(level=0)
+            else:
+                return tuple([self.level_to_dask(level=level) for level in range(self.n_resolutions)])
+
+        if isinstance(downsample, Iterable):
+            return tuple([self.to_dask(downsample=float(d)) for d in downsample])
+
+        level = _get_level(self.downsamples, downsample)
+        array = self.level_to_dask(level=level)
+
+        # Check if we need to resize the array
+        # Don't rely on rescale to be exactly equal to 1.0, and instead check if we need a different output size
+        rescale = downsample / self.downsamples[level]
+        input_width = array.shape[3]
+        input_height = array.shape[2]
+        output_width = int(round(input_width / rescale))
+        output_height = int(round(input_height / rescale))
+        if input_width == output_width and input_height == output_height:
+            return array
+
+        # Couldn't find an easy resizing method for dask arrays... so we try this instead
+
+        # TODO: Urgently need something better! Performance is terrible for large images - all pixels requested
+        #       upon first compute (even for a small region), and then resized. This is not scalable.
+
+        if array.size > 10000:
+            print('Warning - calling affine_transform on a large dask array can be *very* slow')
+
+        from dask_image.ndinterp import affine_transform
+        from dask import array as da
+        array = da.asarray(array)
+        transform = np.eye(array.ndim)
+        transform[2, 2] = rescale
+        transform[3, 3] = rescale
+        # Not sure why rechunking is necessary here, but it is
+        array = da.rechunk(array)
+        array = affine_transform(array,
+                                 transform,
+                                 order=1,
+                                 output_chunks=array.chunks)
+        return array[:, :, :output_height, :output_width, ...]
 
 
 class WrappedImageServer(ImageServer):
@@ -411,9 +511,9 @@ class IccProfileServer(WrappedImageServer):
     for a blog post describing where this may be useful, and providing further code.
     """
 
-    def __init__(self, base_server: ImageServer, 
-                       icc_profile: Union[bytes, ImageCms.ImageCmsProfile, ImageCms.ImageCmsTransform]=None,
-                       **kwargs):
+    def __init__(self, base_server: ImageServer,
+                 icc_profile: Union[bytes, ImageCms.ImageCmsProfile, ImageCms.ImageCmsTransform] = None,
+                 **kwargs):
         super().__init__(base_server, **kwargs)
 
         try:
@@ -426,7 +526,7 @@ class IccProfileServer(WrappedImageServer):
             else:
                 self._icc = _read_icc(base_server.metadata.path)
         except:
-            warnings.warn(f'No ICC Profile found for {base_server.path}') 
+            warnings.warn(f'No ICC Profile found for {base_server.path}')
             self._icc = None
 
     @property
@@ -436,7 +536,7 @@ class IccProfileServer(WrappedImageServer):
         If this is None, then the server simply returns the original pixels unchanged.
         """
         return self._icc
-    
+
     def read_block(self, *args, **kwargs) -> np.ndarray:
         im = self.base_server.read_block(*args, **kwargs)
         if self._icc:
@@ -448,7 +548,7 @@ class IccProfileServer(WrappedImageServer):
     @property
     def path(self) -> str:
         return self._base_server.path + ' (+ICC Profile)'
-    
+
 
 def _get_icc_bytes(path) -> bytes:
     # Temporarily remove max pixel limit used to avoid decompression bomb DOS attach error 
@@ -475,8 +575,6 @@ def _read_icc(path, **kwargs) -> ImageCms.ImageCmsTransform:
     return ImageCms.buildTransformFromOpenProfiles(icc_bytes, srgb, "RGB", "RGB", **kwargs)
 
 
-
-
 def _compute_length(length: float, downsample: float = None) -> int:
     """
     Helper function for computing an image list (width or height) with downsampling,
@@ -486,7 +584,6 @@ def _compute_length(length: float, downsample: float = None) -> int:
     :return:
     """
     return int(round(length / downsample))
-
 
 
 def _validate_block(block: Union[Region2D, Tuple[int, ...]]) -> Region2D:
@@ -501,8 +598,8 @@ def _validate_block(block: Union[Region2D, Tuple[int, ...]]) -> Region2D:
     if isinstance(block, Region2D):
         return block
 
-    return Region2D(*((None,) + block))    
-    
+    return Region2D(*((None,) + block))
+
     # if len(block) == 6:
     #     return block
     # if len(block) < 4:
@@ -550,11 +647,10 @@ def _resize(im: Union[np.ndarray, Image.Image], target_size: Tuple[int, int], re
         im_channels = [
             _resize(im[:, :, c, ...], target_size=target_size, resample=resample)
             for c in range(im.shape[2])
-            ]
+        ]
         if len(im_channels) == 1:
             return np.atleast_3d(im_channels[0])
         return np.stack(im_channels, axis=-1)
-
 
 
 def _get_level(all_downsamples: Tuple[float], downsample: float, abs_tol=1e-3) -> int:
