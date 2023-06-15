@@ -13,6 +13,8 @@ from dask import array as da
 
 from urllib.parse import urlparse, unquote
 
+from ..objects import types
+
 import warnings
 
 """
@@ -279,7 +281,6 @@ def _get_java_server(input) -> JavaObject:
 def add_objects(features, image_data: JavaObject = None, gateway: JavaGateway = None):
     image_data = _get_java_image_data(gateway=gateway, image_data=image_data)
     hierarchy = image_data.getHierarchy()
-    gateway
     raise NotImplementedError("Not implemented yet, sorry!")
 
 
@@ -308,28 +309,84 @@ import geojson
 from geojson import Feature
 
 
-def get_path_objects(input=None, object_type: str = None, gateway=None) -> List[Feature]:
+def get_detections(input=None, **kwargs) -> List[Feature]:
+    return get_objects(input, object_type=types.DETECTION, **kwargs)
+
+def get_cells(input=None, **kwargs) -> List[Feature]:
+    return get_objects(input, object_type=types.CELL, **kwargs)
+
+def get_tiles(input=None, **kwargs) -> List[Feature]:
+    return get_objects(input, object_type=types.TILE, **kwargs)
+
+def get_tma_cores(input=None, **kwargs) -> List[Feature]:
+    return get_objects(input, object_type=types.TMA_CORE, **kwargs)
+
+def get_annotations(input=None, **kwargs) -> List[Feature]:
+    return get_objects(input, object_type=types.ANNOTATION, **kwargs)
+
+def get_objects(input=None, object_type: str = None, gateway=None) -> List[Feature]:
     gateway = _gateway_or_default(input, gateway)
     hierarchy = _get_java_hierarchy(input)
     if hierarchy is None:
         warnings.warn('No object hierarchy found')
         return []
     if object_type is None:
-        path_objects = hierarchy.getObjects(None, None)
-    elif object_type == 'annotation':
+        path_objects = hierarchy.getAllObjects(False)
+    elif object_type == types.ANNOTATION:
         path_objects = hierarchy.getAnnotationObjects()
-    elif object_type == 'detection':
+    elif object_type == types.DETECTION:
         path_objects = hierarchy.getDetectionObjects()
-    elif object_type == 'tile':
+    elif object_type == types.TILE:
         path_objects = hierarchy.getTileObjects()
-    elif object_type == 'cell':
+    elif object_type == types.CELL:
         path_objects = hierarchy.getCellObjects()
-    elif object_type == 'tma':
+    elif object_type == types.TMA_CORE:
         tma_grid = hierarchy.getTMAGrid()
         path_objects = [] if tma_grid is None else tma_grid.getTMACoreList()
 
     feature_list = gateway.entry_point.toGeoJson(path_objects)
-    from ..objects.objects import parse_json_string
-    path_objects = [parse_json_string(f) for f in feature_list]
-    return [p for p in path_objects if p]
+
+    features = [geojson.loads(f) for f in feature_list]
+    return [_as_image_object(f) for f in features]
+
+    # from ..objects.objects import parse_json_string
+    # path_objects = [parse_json_string(f) for f in feature_list]
+    # return [p for p in path_objects if p]
     # return [geojson.loads(f) for f in feature_list]
+
+from ..objects import ImageObject
+def _as_image_object(feature: Feature) -> ImageObject:
+    geometry = _find_property(feature, 'geometry')
+
+    plane = _find_property(feature, 'plane')
+    if plane is not None:
+        from ..objects.geometries import to_geometry
+        geometry = to_geometry(geometry, z=getattr(plane, 'z', None), t=getattr(plane, 't', None))
+
+    args = dict(
+        geometry=geometry,
+        id=_find_property(feature, 'id'),
+        classification=_find_property(feature, 'classification'),
+        name=_find_property(feature, 'name'),
+        color=_find_property(feature, 'color'),
+        measurements=_find_property(feature, 'measurements'),
+        object_type=_find_property(feature, 'object_type'),
+    )
+
+    nucleus_geometry = _find_property(feature, 'nucleusGeometry')
+    if nucleus_geometry is not None:
+        if plane is not None:
+            nucleus_geometry = to_geometry(nucleus_geometry, z=getattr(plane, 'z', None), t=getattr(plane, 't', None))
+        args['extra_geometries'] = dict(nucleus=nucleus_geometry)
+
+
+    args['extra_properties'] = {k: v for k, v in feature.items() if k not in args}
+    return ImageObject(**args)
+
+
+def _find_property(feature: Feature, property_name: str, default_value = None):
+    if property_name in feature:
+        return feature[property_name]
+    if 'properties' in feature and property_name in feature['properties']:
+        return feature['properties'][property_name]
+    return default_value

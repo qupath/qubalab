@@ -1,6 +1,5 @@
 from . import ImageServerMetadata
 from .servers import WrappedImageServer, ImageServer, Region2D
-from ..objects import ROI
 from ..objects.utils import _to_roi
 from PIL import Image, ImageDraw
 from shapely.geometry import *
@@ -48,8 +47,8 @@ def rasterize(image_objects: Union[Iterable[ROI], Iterable[BaseGeometry], Iterab
     if region is None:
         rois = [_to_roi(o, prefer_nucleus=prefer_nucleus) for o in image_objects]
         all_bounds = np.row_stack([r.geometry.bounds for r in rois if r is not None])
-        z = set([r.z for r in rois if r.roi is not None])
-        t = set([r.t for r in rois if r.roi is not None])
+        z = list(set([r.z for r in rois if r.roi is not None]))
+        t = list(set([r.t for r in rois if r.roi is not None]))
         if len(z) != 1 or len(t) != 1:
             raise ValueError('ImageObjects must all fall on a single plane (with equal values of z and t)')
         xy = np.floor(np.min(all_bounds[:, :2], axis=0))
@@ -155,7 +154,7 @@ def _draw_geometry(geom: BaseGeometry, draw: ImageDraw, fill=None, outline=None,
         for hole in geom.interiors:
             _draw_linestring(hole, draw, fill=fill_hole, outline=outline, region=region)
     elif isinstance(geom, LineString):
-        _draw_linestring(geom.exterior, draw, fill=None, outline=outline, region=region)
+        _draw_linestring(geom, draw, fill=None, outline=outline, region=region)
     elif isinstance(geom, Point):
         draw.point([geom.x, geom.y], fill=fill)
     else:
@@ -173,7 +172,7 @@ def _draw_linestring(line_string: LineString, draw: ImageDraw, close_path: bool 
     vertices, codes = utils._linestring_to_vertices(line_string, close_path=close_path, **args)
     draw.polygon(list(vertices.flatten()), fill=fill, outline=outline)
 
-def _ensure_path_class(obj):
+def _ensure_classification(obj):
     if obj is None:
         return obj
     if isinstance(obj, Classification):
@@ -211,7 +210,7 @@ class LabeledImageServer(WrappedImageServer):
                 raise ValueError(f'Multichannel output is not supported without a label_map!')
         else:
             self._unique_labels = False
-            self._label_map = {_ensure_path_class(k): v for k, v in label_map.items()}
+            self._label_map = {_ensure_classification(k): v for k, v in label_map.items()}
         self._build_cache(image_objects)
 
         path = f'{base_server.path} - {label_map}'

@@ -5,9 +5,8 @@ import numpy as np
 from matplotlib.path import Path
 
 from .objects import ImageObject
-from .rois import ROI, create_roi
 
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, Dict
 
 
 def _to_geometry(obj, prefer_nucleus: bool = False) -> BaseGeometry:
@@ -15,29 +14,13 @@ def _to_geometry(obj, prefer_nucleus: bool = False) -> BaseGeometry:
     Try to extract a shapely geometry from an object.
     """
     if isinstance(obj, ImageObject):
-        obj = obj.nucleus_roi if prefer_nucleus else obj.roi
-    if isinstance(obj, ROI):
-        return obj.geometry
+        obj = obj.nucleus_geometry if prefer_nucleus else obj.geometry
+
     if isinstance(obj, BaseGeometry):
         return obj
     if obj is None:
         return None
     return shape(obj)
-
-
-def _to_roi(obj, prefer_nucleus: bool = False) -> ROI:
-    """
-    Try to extract a ROI from an object.
-    """
-    if isinstance(obj, ImageObject):
-        return obj.nucleus_roi if prefer_nucleus else obj.roi
-    if isinstance(obj, ROI):
-        return obj.geometry
-    geometry = _to_geometry(obj, prefer_nucleus=prefer_nucleus)
-    if geometry is None:
-        return None
-    else:
-        return create_roi(geometry)
 
 
 def _ensure_iterable(something, wrap_strings: bool = True) -> Iterable:
@@ -50,6 +33,8 @@ def _ensure_iterable(something, wrap_strings: bool = True) -> Iterable:
     if something is None:
         return []
     if wrap_strings and isinstance(something, str):
+        return [something]
+    if isinstance(something, Dict):
         return [something]
     if isinstance(something, Iterable):
         return something

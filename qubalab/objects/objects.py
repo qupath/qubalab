@@ -1,28 +1,16 @@
-import io
-import warnings
 from typing import Tuple
 import uuid
-from .rois import ROI, create_roi
-from shapely.geometry import shape
-from shapely.geometry.base import BaseGeometry
-from typing import List, Iterable, Union, Dict
-import random
-import json
-from enum import Enum
 
+from . import types as types
+from .geometries import to_geometry
 from geojson import Feature
-
-
-class ImageObjectType(Enum):
-    ROOT = 0,
-    ANNOTATION = 1,
-    DETECTION = 2,
-    TILE = 3,
-    CELL = 4,
-    TMA = 5
+from geojson.geometry import Geometry
+from typing import Iterable, Union, Dict, Any
+import random
 
 
 _cached_classifications = {}
+_NUCLEUS_GEOMETRY_KEY = 'nucleus'
 
 
 class Classification(object):
@@ -49,100 +37,117 @@ class Classification(object):
         return self._parent.__str__() + ': ' + self._name
 
 
-class ImageObject(object):
+class ImageObject(Feature):
+    """
+    GeoJSON Feature with additional properties for image objects.
+    """
 
-    def __init__(self, roi: Union[ROI, BaseGeometry], classification: Classification = None, name: str = None,
-                 measurements: Dict[str, float] = None, object_type: ImageObjectType = ImageObjectType.ANNOTATION,
-                 nucleus_roi: Union[ROI, BaseGeometry] = None, object_id: uuid.UUID = None):
-        # self._parent = None
-        # self._children = []
-        self._roi = roi if isinstance(roi, ROI) else create_roi(roi)
-        if nucleus_roi is not None:
-            if object_type != ImageObjectType.CELL:
-                raise ValueError(f'Cannot set a nucleus ROI for objects of type {object_type}')
-            self._nucleus_roi = nucleus_roi if isinstance(nucleus_roi, ROI) else create_roi(nucleus_roi)
-        else:
-            self._nucleus_roi = None
-        self._classification = classification
-        self._name = name
-        self._measurements = measurements
-        self._object_type = object_type
-        self._object_id = object_id if object_id is not None else uuid.uuid4()
+    def __init__(self,
+                 geometry,
+                 classification: Classification = None,
+                 name: str = None,
+                 measurements: Dict[str, float] = None,
+                 object_type: str = types.ANNOTATION,
+                 color: Tuple[int, int, int] = None,
+                 extra_geometries: Dict[str, Any] = None,
+                 id: Union[str, int, uuid.UUID] = None,
+                 extra_properties: Dict[str, Any] = None):
 
-    @property
-    def __geo_interface__(self):
-        # See https://gist.github.com/sgillies/2217756
-        # TODO: Consider if this is useful - and if properties should be stored directly in dict
+        object_id = self._to_id_string(id)
         props = dict(
-                        classification=self.classification,
-                        name=self.name,
-                        measurements=self.measurements,
-                        object_type=self.object_type,
-                        object_id=self.object_id
-                    )
-        if self.nucleus_roi is not None:
-            props['nucleus_roi'] = self.nucleus_roi.roi # Or __geo_interface__?
-        return dict(type='Feature',
-                    geometry=shape(self._roi.__geo_interface__),
-                    properties=props)
+            classification=classification,
+            name=name,
+            measurements=measurements,
+            object_type=object_type,
+            color=color,
+            extra_geometries={} if extra_geometries is None else {k: to_geometry(v) for k, v in extra_geometries.items()}
+        )
+        if extra_properties is not None:
+            props.update(extra_properties)
+
+        super().__init__(geometry=to_geometry(geometry), properties=props, id=object_id)
+        self.type = 'Feature'
+
+
+    @classmethod
+    def _to_id_string(cls, object_id: Union[int, str, uuid.UUID], create_if_missing: bool = True) -> str:
+        if object_id is None:
+            if create_if_missing:
+                return str(uuid.uuid4())
+            else:
+                return None
+        if isinstance(object_id, str) or isinstance(object_id, int):
+            return object_id
+        else:
+            return str(object_id)
 
     @property
-    def object_type(self) -> bool:
-        return self._object_type
+    def object_type(self) -> str:
+        return self.properties['object_type']
+
+    @object_type.setter
+    def object_type(self, object_type: str) -> str:
+        self.properties['object_type'] = object_type
 
     @property
     def is_detection(self) -> bool:
-        return self._object_type in [ImageObjectType.DETECTION, ImageObjectType.CELL, ImageObjectType.TILE]
+        return self.object_type in [types.DETECTION, types.CELL, types.TILE]
 
     @property
     def is_cell(self) -> bool:
-        return self._object_type == ImageObjectType.CELL
+        return self.object_type == types.CELL
 
     @property
     def is_tile(self) -> bool:
-        return self._object_type == ImageObjectType.TILE
+        return self.object_type == types.TILE
 
     @property
     def is_annotation(self) -> bool:
-        return self._object_type == ImageObjectType.ANNOTATION
+        return self.object_type == types.ANNOTATION
+
+    @property
+    def color(self) -> Tuple[int, int, int]:
+        # TODO: Consider consistently changing color tuples to float (and supporting alpha)
+        return self.properties.get('color')
 
     @property
     def measurements(self) -> Dict[str, float]:
-        if self._measurements is None:
-            self._measurements = {}
-        return self._measurements
+        measurements = self.properties.get('measurements')
+        if measurements is None:
+            measurements = {}
+            self.properties['measurements'] = measurements
+        return measurements
 
     @property
-    def roi(self) -> ROI:
-        return self._roi
+    def nucleus_geometry(self) -> Geometry:
+        extra = self.properties.get('extra_geometries')
+        if extra is not None:
+            return extra.get(_NUCLEUS_GEOMETRY_KEY)
+        return None
 
-    @property
-    def nucleus_roi(self) -> ROI:
-        return self._nucleus_roi
-
-    @nucleus_roi.setter
-    def nucleus_roi(self, nucleus_roi: ROI):
-        self._nucleus_roi = nucleus_roi
-
-    @roi.setter
-    def roi(self, roi: ROI):
-        self._roi = roi
+    @nucleus_geometry.setter
+    def nucleus_geometry(self, geometry: Geometry):
+        self.properties['extra_geometries'][_NUCLEUS_GEOMETRY_KEY] = to_geometry(geometry)
 
     @property
     def name(self) -> str:
-        return self._name
+        return self.properties
 
     @name.setter
-    def name(self, name: ROI):
-        self._name = name
+    def name(self, name: str):
+        self.properties['name'] = name
 
     @property
     def classification(self) -> Classification:
-        return self._classification
+        return self.properties.get('classification')
 
     @classification.setter
     def classification(self, classification: Classification):
-        self._classification = classification
+        self.properties['classification'] = classification
+
+    @property
+    def properties(self) -> Dict[str, Any]:
+        return self['properties']
 
     # @property
     # def parent(self) -> 'ImageObject':
@@ -153,29 +158,27 @@ class ImageObject(object):
     #     self._parent = parent
 
 
-def create_tile(roi: Union[ROI, BaseGeometry], classification: Classification = None, name: str = None,
+def create_tile(geometry, classification: Classification = None, name: str = None,
                 measurements: Dict[str, float] = None, object_id: uuid.UUID = None):
-    return ImageObject(roi=roi, classification=classification, name=name, measurements=measurements,
-                       object_type=ImageObjectType.TILE, object_id=object_id)
+    return ImageObject(geometry=geometry, classification=classification, name=name, measurements=measurements,
+                       object_type=types.TILE, object_id=object_id)
 
 
-def create_detection(roi: Union[ROI, BaseGeometry], classification: Classification = None, name: str = None,
-                     measurements: Dict[str, float] = None, object_id: uuid.UUID = None):
-    return ImageObject(roi=roi, classification=classification, name=name, measurements=measurements,
-                       object_type=ImageObjectType.DETECTION, object_id=object_id)
+def create_detection(geometry, **kwargs):
+    return ImageObject(geometry=geometry, object_type=types.DETECTION, **kwargs)
 
 
-def create_cell(roi: Union[ROI, BaseGeometry], nucleus_roi: Union[ROI, BaseGeometry], classification: Classification = None,
-                name: str = None,
-                measurements: Dict[str, float] = None, object_id: uuid.UUID = None):
-    return ImageObject(roi=roi, nucleus_roi=nucleus_roi, classification=classification, name=name, measurements=measurements,
-                       object_type=ImageObjectType.CELL, object_id=object_id)
+def create_cell(geometry, nucleus_geometry, **kwargs):
+    # We are assuming that no other extra geometries are provided via kwargs
+    if nucleus_geometry:
+        extra_geometries = {_NUCLEUS_GEOMETRY_KEY: nucleus_geometry}
+    else:
+        extra_geometries = None
+    return ImageObject(geometry=geometry, extra_geometries=extra_geometries, **kwargs)
 
 
-def create_annotation(roi: Union[ROI, BaseGeometry], classification: Classification = None, name: str = None,
-                      measurements: Dict[str, float] = None, object_id: uuid.UUID = None):
-    return ImageObject(roi=roi, classification=classification, name=name, measurements=measurements,
-                       object_type=ImageObjectType.ANNOTATION, object_id=object_id)
+def create_annotation(geometry, **kwargs):
+    return ImageObject(geometry=geometry, object_type=types.ANNOTATION, **kwargs)
 
 
 def get_classification(name: str, color: Tuple[int, int, int] = None):
@@ -186,74 +189,6 @@ def get_classification(name: str, color: Tuple[int, int, int] = None):
         classification = Classification(name=name, color=color)
         _cached_classifications[classification.__str__()] = classification
     return classification
-
-
-def parse_json_string(json_string: str) -> Union[ImageObject, List[ImageObject]]:
-    json_objects = json.loads(json_string)
-    return _parse_json_objects(json_objects)
-
-
-def read_json(file) -> Union[ImageObject, List[ImageObject]]:
-    """
-    Read one or more objects from a GeoJSON representation.
-    :param file:
-    :return:
-    """
-    with open(file, 'r') as f:
-        json_objects = json.load(f)
-        return _parse_json_objects(json_objects)
-
-
-def _parse_json_objects(json_objects) -> Union[ImageObject, List[ImageObject]]:
-    """
-    Read one or more objects from a GeoJSON representation.
-    :param file:
-    :return:
-    """
-    image_objects = []
-    unwrap_single_object = False
-    if isinstance(json_objects, dict):
-        # Handle feature collection
-        if 'features' in json_objects:
-            json_objects = json_objects['features']
-
-    if not isinstance(json_objects, List):
-        json_objects = [json_objects]
-        unwrap_single_object = True
-    for obj in json_objects:
-        geometry = obj['geometry']
-        if not geometry:
-            print('Skipping object without geometry')
-            continue
-        roi = create_roi(shape(geometry))
-        object_id = None
-        if 'id' in obj:
-            try:
-                object_id = uuid.UUID(obj['id'])
-            except:
-                pass
-        nucleus_roi = create_roi(shape(obj['nucleusGeometry'])) if 'nucleusGeometry' in obj else None
-        name = None
-        measurements = None
-        props = obj.get('properties')
-        classification = None
-        if props is not None:
-            name = props.get('name')
-            measurements = props.get('measurements')
-            if 'classification' in props:
-                classification = props['classification']
-                if 'color' in classification:
-                    color = _parse_color(classification['color'])
-                elif 'colorRGB' in classification:
-                    color = _parse_color(classification['colorRGB'])
-                classification = get_classification(classification['name'], color)
-            object_type = None
-            if 'objectType' in obj:
-                object_type = _get_object_type.get(obj['objectType'])
-        path_object = ImageObject(roi=roi, nucleus_roi=nucleus_roi, classification=classification, name=name,
-                                  measurements=measurements, object_type=object_type, object_id=object_id)
-        image_objects.append(path_object)
-    return image_objects[0] if len(image_objects) == 1 and unwrap_single_object else image_objects
 
 
 def _parse_color(color: Union[Tuple[int, int, int], Tuple[int, int, int], int]) -> Tuple[int, int, int]:
@@ -271,23 +206,3 @@ def _parse_color(color: Union[Tuple[int, int, int], Tuple[int, int, int], int]) 
             return color
         else:
             raise ValueError(f'Color tuples should give RGB or RGBA values (length 3 or 4)')
-
-
-def _get_object_type(name: str) -> ImageObjectType:
-    """
-    Try to get an object type from a string.
-    """
-    name_lower = name.lower().strip()
-    if name_lower == 'detection':
-        return ImageObjectType.DETECTION
-    elif name_lower == 'cell':
-        return ImageObjectType.CELL
-    elif name_lower == 'tile':
-        return ImageObjectType.TILE
-    elif name_lower == 'annotation':
-        return ImageObjectType.ANNOTATION
-    elif name_lower == 'root':
-        return ImageObjectType.ROOT
-    else:
-        warnings.warn(f"Unknown object type {name}")
-        return None

@@ -2,6 +2,6 @@
 Handle objects and regions of interest.
 """
 
-from . import objects, rois
-from .objects import ImageObject, ImageObjectType, Classification, get_classification
-from .rois import ROI
+from . import objects, geometries
+from .objects import ImageObject, Classification, get_classification
+from .geometries import to_geometry

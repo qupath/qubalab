@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Union, Tuple, Iterable, Optional
+from typing import Union, Tuple, Iterable
 from dataclasses import dataclass
 from PIL import Image, ImageCms
 
 import io
 import warnings
 import numpy as np
+from geojson import Polygon
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,23 @@ class Region2D:
     height: int = -1
     z: int = 0
     t: int = 0
+
+    @classmethod
+    def from_geometry(cls, geometry, downsample: float = None) -> "Region2D":
+        from ..objects.geometries import to_geometry, to_shapely
+        geometry = to_geometry(geometry)
+        if geometry is None:
+            return None
+        bounds = to_shapely(geometry).bounds
+        return Region2D(
+            downsample=downsample,
+            x=int(bounds[0]),
+            y=int(bounds[1]),
+            width=int(bounds[2] - bounds[0]),
+            height=int(bounds[3] - bounds[1]),
+            z=getattr(geometry, 'z', 0),
+            t=getattr(geometry, 't', 0)
+        )
 
     def scale_region(self, scale_factor: float = None) -> "Region2D":
         if scale_factor is None:
@@ -58,22 +76,12 @@ class Region2D:
 
 
     @property
-    def roi(self):
-        """
-        Get a ROI representation of this region.
-        This will not include the downsample information.
-        """
-        from ..objects.rois import create_rectangle
-        return create_rectangle(self.x, self.y, self.width, self.height, z=self.z, t=self.t)
-
-
-    @property
-    def geometry(self):
+    def geometry(self) -> Polygon:
         """
         Get a Geometry representation of this region.
-        This will not include the downsample, z or t information.
         """
-        return self.roi.geometry
+        from ..objects.geometries import create_rectangle
+        return create_rectangle(self.x, self.y, self.width, self.height, z=self.z, t=self.t)
 
 
 
