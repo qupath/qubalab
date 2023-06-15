@@ -8,8 +8,8 @@ requirements = [
     "geojson",
     "imageio",
     "tiffslide",
-    "aicsimageio"
-#    "matplotlib"
+    "aicsimageio",
+    "matplotlib"
 ]
 
 setup(

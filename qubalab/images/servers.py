@@ -57,6 +57,26 @@ class Region2D:
         return Region2D(downsample=None, x=x, y=y, width=x2 - x, height=y2 - y, z=self.z, t=self.t)
 
 
+    @property
+    def roi(self):
+        """
+        Get a ROI representation of this region.
+        This will not include the downsample information.
+        """
+        from ..objects.rois import create_rectangle
+        return create_rectangle(self.x, self.y, self.width, self.height, z=self.z, t=self.t)
+
+
+    @property
+    def geometry(self):
+        """
+        Get a Geometry representation of this region.
+        This will not include the downsample, z or t information.
+        """
+        return self.roi.geometry
+
+
+
 @dataclass(frozen=True)
 class PixelLength:
     """

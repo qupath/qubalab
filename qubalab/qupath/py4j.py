@@ -15,7 +15,6 @@ from urllib.parse import urlparse, unquote
 
 import warnings
 
-
 """
 Store default Gateway so it doesn't need to always be passed as a parameter
 """
@@ -23,8 +22,8 @@ _default_gateway: JavaGateway = None
 
 
 class QuPathServer(ImageServer):
-    
-    def __init__(self, gateway: JavaGateway = None, server_obj: JavaObject = None, use_temp_files = False, **kwargs):
+
+    def __init__(self, gateway: JavaGateway = None, server_obj: JavaObject = None, use_temp_files=False, **kwargs):
         """_summary_
         Args:
             gateway (JavaGateway, optional): _description_. Defaults to None.
@@ -44,16 +43,16 @@ class QuPathServer(ImageServer):
         if self._gateway is None:
             raise ValueError('A JavaGateway is needed! See create_gateway() for details.')
 
-
     def _build_metadata(self) -> ImageServerMetadata:
         # Get what we can directly from the server
         server = self._server_obj
         downsamples = tuple([d for d in server.getPreferredDownsamples()])
-        
-        self._downsamples = downsamples # Use the QuPath values directly
-        
-        shapes = tuple([ImageShape(x=level.getWidth(), y=level.getHeight(), c=server.nChannels(), z=server.nZSlices(), t=server.nTimepoints())
-            for level in server.getMetadata().getLevels()])
+
+        self._downsamples = downsamples  # Use the QuPath values directly
+
+        shapes = tuple([ImageShape(x=level.getWidth(), y=level.getHeight(), c=server.nChannels(), z=server.nZSlices(),
+                                   t=server.nTimepoints())
+                        for level in server.getMetadata().getLevels()])
 
         dt = np.dtype(server.getPixelType().toString().lower())
         is_rgb = server.isRGB()
@@ -68,17 +67,17 @@ class QuPathServer(ImageServer):
         path = _find_server_file_path(server)
         if path is None:
             path = server.getPath()
-        
+
         if cal.hasPixelSizeMicrons():
             if cal.getZSpacingMicrons():
                 length_z = PixelLength.create_microns(cal.getZSpacingMicrons())
             else:
                 length_z = PixelLength()
             pixel_cal = PixelCalibration(
-                length_x = PixelLength.create_microns(cal.getPixelWidthMicrons()),
-                length_y = PixelLength.create_microns(cal.getPixelHeightMicrons()),
-                length_z = length_z
-                )
+                length_x=PixelLength.create_microns(cal.getPixelWidthMicrons()),
+                length_y=PixelLength.create_microns(cal.getPixelHeightMicrons()),
+                length_z=length_z
+            )
         else:
             pixel_cal = PixelCalibration()
 
@@ -91,7 +90,6 @@ class QuPathServer(ImageServer):
             is_rgb=is_rgb,
             channels=channels
         )
-
 
     def read_block(self, level: int, block: Tuple[int, ...]) -> np.ndarray:
         _, x, y, width, height, z, t = astuple(_validate_block(block))
@@ -128,14 +126,14 @@ class QuPathServer(ImageServer):
             # start_time = time.time()
             fmt = 'png' if self.is_rgb else "imagej tiff"
             byte_array = gateway.entry_point.getImageBytes(server,
-                downsample,
-                int(round(x * downsample)),
-                int(round(y * downsample)),
-                int(round(width * downsample)),
-                int(round(height * downsample)),
-                z,
-                t,
-                fmt)
+                                                           downsample,
+                                                           int(round(x * downsample)),
+                                                           int(round(y * downsample)),
+                                                           int(round(width * downsample)),
+                                                           int(round(height * downsample)),
+                                                           z,
+                                                           t,
+                                                           fmt)
             # end_time = time.time()
             # import threading
             # thread_id = threading.current_thread().ident
@@ -155,13 +153,11 @@ class QuPathServer(ImageServer):
         return im
 
 
-
-
 def _unpack_color(rgb: int) -> Tuple[float, float, float]:
     r = (rgb >> 16) & 255
     g = (rgb >> 8) & 255
     b = rgb & 255
-    return r/255.0, g/255.0, b/255.0
+    return r / 255.0, g / 255.0, b / 255.0
 
 
 def _get_server_uris(server: JavaObject) -> Tuple[str]:
@@ -169,6 +165,7 @@ def _get_server_uris(server: JavaObject) -> Tuple[str]:
     Get URIs for a java object representing an ImageServer.
     """
     return tuple(str(u) for u in server.getURIs())
+
 
 def _find_server_file_path(server: JavaObject) -> str:
     """
@@ -198,7 +195,7 @@ def create_gateway(auto_convert=True, auth_token=None, set_as_default=True, **kw
     if auth_token is not None:
         params = GatewayParameters(auth_token=auth_token)
         gateway = JavaGateway(auto_convert=auto_convert, gateway_parameters=params, **kwargs)
-    else:  
+    else:
         # from py4j.clientserver import ClientServer, JavaParameters, PythonParameters
         # gateway = ClientServer(
         #     java_parameters=JavaParameters(auto_convert=auto_convert),
@@ -208,12 +205,14 @@ def create_gateway(auto_convert=True, auth_token=None, set_as_default=True, **kw
         set_default_gateway(gateway)
     return gateway
 
+
 def set_default_gateway(gateway: JavaGateway = None):
     """
     Set the default JavaGateway to use if one is not otherwise specified.
     """
     global _default_gateway
     _default_gateway = gateway
+
 
 def _gateway_or_default(*args, **kwargs):
     """
@@ -268,7 +267,7 @@ def _get_java_server(input) -> JavaObject:
     Get an ImageServer from the input, if possible.
     """
     # Could use this, but then we definitely need a gateway
-#    cls_server = gateway.jvm.Class.forName('qupath.lib.images.servers.ImageServer')
+    #    cls_server = gateway.jvm.Class.forName('qupath.lib.images.servers.ImageServer')
     if isinstance(input, JavaObject):
         for cls in input.getClass().getInterfaces():
             if str(cls.getName()) == 'qupath.lib.images.servers.ImageServer':
@@ -277,14 +276,14 @@ def _get_java_server(input) -> JavaObject:
     return None if image_data is None else image_data.getServer()
 
 
-def add_objects(features, image_data: JavaObject=None, gateway: JavaGateway=None):
+def add_objects(features, image_data: JavaObject = None, gateway: JavaGateway = None):
     image_data = _get_java_image_data(gateway=gateway, image_data=image_data)
     hierarchy = image_data.getHierarchy()
     gateway
     raise NotImplementedError("Not implemented yet, sorry!")
 
 
-def get_server(input = None) -> ImageServer:
+def get_server(input=None) -> ImageServer:
     """
     Get an ImageServer from the input
     """
@@ -292,11 +291,11 @@ def get_server(input = None) -> ImageServer:
         return input
     server = _get_java_server(input)
     return None if server is None else QuPathServer(
-        gateway = _gateway_or_default(),
-        server_obj = server)
+        gateway=_gateway_or_default(),
+        server_obj=server)
 
 
-def get_dask_array(input = None, downsamples: Union[float, Iterable[float]] = None, **kwargs) -> da.Array:
+def get_dask_array(input=None, downsamples: Union[float, Iterable[float]] = None, **kwargs) -> da.Array:
     """
     Get one or more dask arrays corresponding to the image currently open in QuPath.
     """
@@ -304,10 +303,12 @@ def get_dask_array(input = None, downsamples: Union[float, Iterable[float]] = No
     from ..images import to_dask
     return None if server is None else to_dask(server, downsamples=downsamples, **kwargs)
 
+
 import geojson
 from geojson import Feature
 
-def get_path_objects(input = None, object_type: str = None, gateway = None) -> List[Feature]:
+
+def get_path_objects(input=None, object_type: str = None, gateway=None) -> List[Feature]:
     gateway = _gateway_or_default(input, gateway)
     hierarchy = _get_java_hierarchy(input)
     if hierarchy is None:
@@ -325,8 +326,10 @@ def get_path_objects(input = None, object_type: str = None, gateway = None) -> L
         path_objects = hierarchy.getCellObjects()
     elif object_type == 'tma':
         tma_grid = hierarchy.getTMAGrid()
-        pathObjects = [] if tma_grid is None else tma_grid.getTMACoreList()
+        path_objects = [] if tma_grid is None else tma_grid.getTMACoreList()
 
     feature_list = gateway.entry_point.toGeoJson(path_objects)
-    return [geojson.loads(f) for f in feature_list]
-
+    from ..objects.objects import parse_json_string
+    path_objects = [parse_json_string(f) for f in feature_list]
+    return [p for p in path_objects if p]
+    # return [geojson.loads(f) for f in feature_list]

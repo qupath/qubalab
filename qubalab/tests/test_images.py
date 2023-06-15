@@ -1,7 +1,5 @@
 import pytest
 
-from qubalab.images.servers import ImageShape
-
 from ..images import *
 
 import numpy as np
