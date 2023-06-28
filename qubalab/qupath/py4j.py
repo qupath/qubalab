@@ -1,7 +1,7 @@
 from ..images import ImageServer, PixelLength, PixelCalibration, ImageServerMetadata, ImageShape, ImageChannel
 from ..images.servers import _validate_block, _resize
 
-from dataclasses import astuple, dataclass
+from dataclasses import astuple
 from typing import List, Tuple, Iterable, Union
 from py4j.java_gateway import JavaGateway, JavaObject, GatewayParameters
 
@@ -11,11 +11,16 @@ import numpy as np
 
 from dask import array as da
 
-from urllib.parse import urlparse, unquote
-
+from ..objects import ImageObject, to_geometry
 from ..objects import types
+import geojson
+from geojson import Feature
 
+from urllib.parse import urlparse, unquote
 import warnings
+import base64
+import tempfile
+import os
 
 """
 Store default Gateway so it doesn't need to always be passed as a parameter
@@ -25,18 +30,22 @@ _default_gateway: JavaGateway = None
 
 class QuPathServer(ImageServer):
 
-    def __init__(self, gateway: JavaGateway = None, server_obj: JavaObject = None, use_temp_files=False, **kwargs):
+    def __init__(self, gateway: JavaGateway = None, server_obj: JavaObject = None,
+                 pixel_access: str = 'base64', **kwargs):
         """_summary_
         Args:
             gateway (JavaGateway, optional): _description_. Defaults to None.
             server_obj (JavaObject, optional): _description_. Defaults to None.
-            use_temp_files (bool, optional): Use temp files when requesting pixels. Temp files can be faster than passing byte arrays with py4j - although not so kind on the hard disk. Defaults to False.
+            pixel_access (str, optional): Method of accessing pixel values.
+                                          This can be 'base64', 'bytes' or 'tempfile'.
+                                          Default is 'base64', which tends to be faster than 'bytes'.
+                                          'tempfile' is the fastest, but requires writing files to disk.
 
         Raises:
             ValueError: _description_
         """
         super().__init__(**kwargs)
-        self._use_temp_files = use_temp_files
+        self._pixel_access = pixel_access
         self._gateway = _gateway_or_default(gateway)
         # Get the current server if none is specified
         if server_obj is None:
@@ -105,17 +114,20 @@ class QuPathServer(ImageServer):
             level = len(self.downsamples) + level
         downsample = server.getDownsampleForResolution(level)
 
-        if self._use_temp_files:
-            import tempfile, os
+        request = gateway.jvm.qupath.lib.regions.RegionRequest.createInstance(
+            server.getPath(), downsample,
+            int(round(x * downsample)),
+            int(round(y * downsample)),
+            int(round(width * downsample)),
+            int(round(height * downsample)),
+            z,
+            t)
+
+        import time
+        start_time = time.time()
+
+        if self._pixel_access == 'tempfile':
             temp_path = tempfile.mkstemp(prefix='qubalab-', suffix='.tif')[1]
-            request = gateway.jvm.qupath.lib.regions.RegionRequest.createInstance(
-                server.getPath(), downsample,
-                int(round(x * downsample)),
-                int(round(y * downsample)),
-                int(round(width * downsample)),
-                int(round(height * downsample)),
-                z,
-                t)
             gateway.entry_point.writeImageRegion(server, request, temp_path)
             if self.metadata.is_rgb or self.n_channels == 1:
                 im = imread(temp_path)
@@ -124,28 +136,22 @@ class QuPathServer(ImageServer):
                 im = np.moveaxis(volread(temp_path), 0, -1)
             os.remove(temp_path)
         else:
-            # import time
-            # start_time = time.time()
             fmt = 'png' if self.is_rgb else "imagej tiff"
-            byte_array = gateway.entry_point.getImageBytes(server,
-                                                           downsample,
-                                                           int(round(x * downsample)),
-                                                           int(round(y * downsample)),
-                                                           int(round(width * downsample)),
-                                                           int(round(height * downsample)),
-                                                           z,
-                                                           t,
-                                                           fmt)
-            # end_time = time.time()
-            # import threading
-            # thread_id = threading.current_thread().ident
-            # print(f'Read time: {end_time - start_time:.2f} seconds, length: {len(byte_array)}, thread: {thread_id}')
+            fmt = "imagej tiff"
+            if self._pixel_access == 'bytes':
+                byte_array = gateway.entry_point.getImageBytes(server, request, fmt)
+            else:
+                im_base64 = gateway.entry_point.getImageBase64(server, request, fmt)
+                byte_array = base64.b64decode(im_base64)
 
             if self.metadata.is_rgb or self.n_channels == 1:
                 im = imread(byte_array)
             else:
                 # We can just provide 2D images; using volread move to channels-last
                 im = np.moveaxis(volread(byte_array), 0, -1)
+
+        end_time = time.time()
+        print(f'Read time: {end_time - start_time:.2f} seconds')
 
         if height != im.shape[0] or width != im.shape[1]:
             shape_before = im.shape
@@ -172,7 +178,7 @@ def _get_server_uris(server: JavaObject) -> Tuple[str]:
 def _find_server_file_path(server: JavaObject) -> str:
     """
     Try to get the file path for a java object representing an ImageServer.
-    This can be useful
+    This can be useful to get direct access to an image file, rather than via QuPath.
     """
     uris = _get_server_uris(server)
     if len(uris) == 1:
@@ -278,10 +284,68 @@ def _get_java_server(input) -> JavaObject:
     return None if image_data is None else image_data.getServer()
 
 
-def add_objects(features, image_data: JavaObject = None, gateway: JavaGateway = None):
-    image_data = _get_java_image_data(gateway=gateway, image_data=image_data)
-    hierarchy = image_data.getHierarchy()
-    raise NotImplementedError("Not implemented yet, sorry!")
+class ExtendedGeoJsonEncoder(geojson.GeoJSONEncoder):
+    def default(self, o):
+        import dataclasses
+        if dataclasses.is_dataclass(o):
+            return dataclasses.asdict(o)
+        return super().default(o)
+
+
+def add_objects(features: List[Feature], image_data: JavaObject = None, gateway: JavaGateway = None):
+    if not features:
+        return
+    gateway = _gateway_or_default(gateway)
+    if image_data is None:
+        image_data = get_current_image_data(gateway=gateway)
+    else:
+        image_data = _get_java_image_data(image_data)
+    if image_data is None:
+        raise ValueError('Cannot find an ImageData')
+    # import json
+    # json_str = json.dumps(features, cls=ExtendedGeoJsonEncoder, allow_nan=True, indent=2)
+    json_str = geojson.dumps(features, allow_nan=True, indent=2)
+    path_objects = gateway.entry_point.toPathObjects(json_str)
+    image_data.getHierarchy().addObjects(path_objects);
+
+
+def add_object(features: Feature, image_data: JavaObject = None, gateway: JavaGateway = None):
+    add_objects(list(features), image_data=image_data, gateway=gateway)
+
+
+def delete_all_objects(input=None):
+    image_data = _get_java_image_data(input)
+    if image_data is not None:
+        image_data.getHierarchy().clearAll()
+
+
+def _delete_objects(image_data: JavaObject, path_objects: List[JavaObject]):
+    if image_data is not None and path_objects:
+        image_data.getHierarchy().removeObjects(path_objects, True)
+
+
+def delete_detections(input=None):
+    image_data = _get_java_image_data(input)
+    if image_data is not None:
+        _delete_objects(image_data=image_data, path_objects=image_data.getHierarchy().getDetectionObjects())
+
+
+def delete_annotations(input=None):
+    image_data = _get_java_image_data(input)
+    if image_data is not None:
+        _delete_objects(image_data=image_data, path_objects=image_data.getHierarchy().getAnnotationObjects())
+
+
+def delete_cells(input=None):
+    image_data = _get_java_image_data(input)
+    if image_data is not None:
+        _delete_objects(image_data=image_data, path_objects=image_data.getHierarchy().getCellObjects())
+
+
+def delete_tiles(input=None):
+    image_data = _get_java_image_data(input)
+    if image_data is not None:
+        _delete_objects(image_data=image_data, path_objects=image_data.getHierarchy().getTileObjects())
 
 
 def get_server(input=None) -> ImageServer:
@@ -305,26 +369,27 @@ def get_dask_array(input=None, downsamples: Union[float, Iterable[float]] = None
     return None if server is None else to_dask(server, downsamples=downsamples, **kwargs)
 
 
-import geojson
-from geojson import Feature
-
-
 def get_detections(input=None, **kwargs) -> List[Feature]:
     return get_objects(input, object_type=types.DETECTION, **kwargs)
+
 
 def get_cells(input=None, **kwargs) -> List[Feature]:
     return get_objects(input, object_type=types.CELL, **kwargs)
 
+
 def get_tiles(input=None, **kwargs) -> List[Feature]:
     return get_objects(input, object_type=types.TILE, **kwargs)
+
 
 def get_tma_cores(input=None, **kwargs) -> List[Feature]:
     return get_objects(input, object_type=types.TMA_CORE, **kwargs)
 
+
 def get_annotations(input=None, **kwargs) -> List[Feature]:
     return get_objects(input, object_type=types.ANNOTATION, **kwargs)
 
-def get_objects(input=None, object_type: str = None, gateway=None) -> List[Feature]:
+
+def get_objects(input=None, object_type: str = None, gateway=None, to_image_object=True) -> List[Feature]:
     gateway = _gateway_or_default(input, gateway)
     hierarchy = _get_java_hierarchy(input)
     if hierarchy is None:
@@ -344,23 +409,45 @@ def get_objects(input=None, object_type: str = None, gateway=None) -> List[Featu
         tma_grid = hierarchy.getTMAGrid()
         path_objects = [] if tma_grid is None else tma_grid.getTMACoreList()
 
-    feature_list = gateway.entry_point.toGeoJson(path_objects)
+    features = []
+    # Use toFeatureCollections for performance and to avoid string length troubles
+    for sublist in gateway.entry_point.toFeatureCollections(path_objects, 1000):
+        features.extend(_geojson_features_from_string(sublist, parse_constant=None))
 
-    features = [geojson.loads(f) for f in feature_list]
-    return [_as_image_object(f) for f in features]
+    if to_image_object:
+        return [_as_image_object(f) for f in features]
+    else:
+        return features
 
-    # from ..objects.objects import parse_json_string
-    # path_objects = [parse_json_string(f) for f in feature_list]
-    # return [p for p in path_objects if p]
-    # return [geojson.loads(f) for f in feature_list]
 
-from ..objects import ImageObject
+def _geojson_features_from_string(json_string: str, **kwargs):
+    """
+    Read features from a GeoJSON string.
+    If the string encodes a feature collection, the features themselves will be extracted.
+    """
+    results = _geojson_from_string(json_string, **kwargs)
+    if 'features' in results:
+        results = results['features']
+    return results
+
+
+def _geojson_from_string(json: str, **kwargs):
+    """
+    Read a GeoJSON string.
+    This is a wrapper around geojson.loads that allows for NaNs by default (and is generally non-strict with numbers).
+    """
+    # Default parse constant is _enforce_strict_numbers, which fails on NaNs
+    if 'parse_constant' in kwargs:
+        return geojson.loads(json, **kwargs)
+    else:
+        return geojson.loads(json, parse_constant=None, **kwargs)
+
+
 def _as_image_object(feature: Feature) -> ImageObject:
     geometry = _find_property(feature, 'geometry')
 
     plane = _find_property(feature, 'plane')
     if plane is not None:
-        from ..objects.geometries import to_geometry
         geometry = to_geometry(geometry, z=getattr(plane, 'z', None), t=getattr(plane, 't', None))
 
     args = dict(
@@ -379,12 +466,11 @@ def _as_image_object(feature: Feature) -> ImageObject:
             nucleus_geometry = to_geometry(nucleus_geometry, z=getattr(plane, 'z', None), t=getattr(plane, 't', None))
         args['extra_geometries'] = dict(nucleus=nucleus_geometry)
 
-
-    args['extra_properties'] = {k: v for k, v in feature.items() if k not in args}
+    args['extra_properties'] = {k: v for k, v in feature['properties'].items() if k not in args and v is not None}
     return ImageObject(**args)
 
 
-def _find_property(feature: Feature, property_name: str, default_value = None):
+def _find_property(feature: Feature, property_name: str, default_value=None):
     if property_name in feature:
         return feature[property_name]
     if 'properties' in feature and property_name in feature['properties']:

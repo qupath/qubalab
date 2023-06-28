@@ -54,17 +54,25 @@ class ImageObject(Feature):
                  extra_properties: Dict[str, Any] = None):
 
         object_id = self._to_id_string(id)
-        props = dict(
-            classification=classification,
-            name=name,
-            measurements=measurements,
-            object_type=object_type,
-            color=color,
-            extra_geometries={} if extra_geometries is None else {k: to_geometry(v) for k, v in extra_geometries.items()}
-        )
+        props = {}
+        if classification is not None:
+            props['classification'] = classification
+        if name is not None:
+            props['name'] = name
+        if measurements is not None:
+            # Can't store NaN properly in JSON, so try to remove
+            import math
+            props['measurements'] = {k: float(v) for k, v in measurements.items()
+                                     if isinstance(k, str) and isinstance(v, (int, float)) and not math.isnan(v)}
+        if object_type is not None:
+            props['object_type'] = object_type
+        if color is not None:
+            props['color'] = color
+        if extra_geometries is not None:
+            props['extra_geometries'] = {k: to_geometry(v) for k, v in extra_geometries.items()}
+
         if extra_properties is not None:
             props.update(extra_properties)
-
         super().__init__(geometry=to_geometry(geometry), properties=props, id=object_id)
         self.type = 'Feature'
 
@@ -145,9 +153,9 @@ class ImageObject(Feature):
     def classification(self, classification: Classification):
         self.properties['classification'] = classification
 
-    @property
-    def properties(self) -> Dict[str, Any]:
-        return self['properties']
+    # @property
+    # def properties(self) -> Dict[str, Any]:
+    #     return self['properties']
 
     # @property
     # def parent(self) -> 'ImageObject':

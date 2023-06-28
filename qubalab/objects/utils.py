@@ -4,7 +4,8 @@ from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 import numpy as np
 from matplotlib.path import Path
 
-from .objects import ImageObject
+from .objects import ImageObject, _NUCLEUS_GEOMETRY_KEY
+from geojson import Feature
 
 from typing import Iterable, List, Tuple, Dict
 
@@ -13,13 +14,21 @@ def _to_geometry(obj, prefer_nucleus: bool = False) -> BaseGeometry:
     """
     Try to extract a shapely geometry from an object.
     """
+    if obj is None:
+        return None
+
     if isinstance(obj, ImageObject):
         obj = obj.nucleus_geometry if prefer_nucleus else obj.geometry
 
+    if isinstance(obj, Feature):
+        # Try to extract from a feature
+        if prefer_nucleus and 'extra_geometries' in obj.properties:
+            obj = obj.properties['extra_geometries'].get(_NUCLEUS_GEOMETRY_KEY, obj.geometry)
+        else:
+            obj = obj.geometry
+
     if isinstance(obj, BaseGeometry):
         return obj
-    if obj is None:
-        return None
     return shape(obj)
 
 

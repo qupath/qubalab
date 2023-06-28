@@ -1,6 +1,7 @@
 from . import ImageServerMetadata
 from .servers import WrappedImageServer, ImageServer, Region2D
-from ..objects.utils import _to_roi
+from ..objects.geometries import to_geometry
+from ..objects.objects import _NUCLEUS_GEOMETRY_KEY
 from PIL import Image, ImageDraw
 from shapely.geometry import *
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
@@ -10,9 +11,53 @@ from typing import Union, Iterable, Dict, Tuple
 from qubalab.objects import ImageObject, Classification, get_classification
 from shapely.strtree import STRtree
 from math import ceil
+import rasterio.features
+from rasterio.transform import Affine
 
 
-def rasterize(image_objects: Union[Iterable[ROI], Iterable[BaseGeometry], Iterable[ImageObject]] = None,
+def labels_to_features(lab: np.ndarray, object_type='annotation', connectivity: int = 4,
+                       transform: Affine = None, downsample: float = 1.0, include_labels=False,
+                       classification: Union[str, Dict[float, str]] = None):
+    """
+    Create a GeoJSON FeatureCollection from a labeled image.
+    """
+    features = []
+
+    # Ensure types are valid
+    if lab.dtype == bool:
+        mask = lab
+        lab = lab.astype(np.uint8)
+    else:
+        mask = lab > 0
+
+    # Create transform from downsample if needed
+    if transform is None:
+        transform = Affine.scale(downsample)
+
+    # Trace geometries
+    for s in rasterio.features.shapes(lab, mask=mask,
+                                      connectivity=connectivity, transform=transform):
+
+        # Create properties
+        props = dict(object_type=object_type)
+        if include_labels:
+            props['measurements'] = [{'name': 'Label', 'value': s[1]}]
+
+        # Add a classification if we have one
+        if isinstance(classification, str):
+            props['classification'] = classification
+        elif isinstance(classification, dict):
+            props['classification'] = get_classification(s[1], classification)
+
+        # Wrap in a dict to effectively create a GeoJSON Feature
+        po = dict(type="Feature", geometry=s[0], properties=props)
+
+        features.append(po)
+
+    return features
+
+
+def rasterize(image_objects: Iterable[object | BaseGeometry | ImageObject] = None,
               region: Union[Tuple, Region2D] = None,
               downsample: float = None,
               value: Union[Iterable, float, int] = 255,
@@ -25,7 +70,7 @@ def rasterize(image_objects: Union[Iterable[ROI], Iterable[BaseGeometry], Iterab
     :param image_objects:  Iterable of objects, ROIs or Geometries to draw.
                            These will be filtered according to the region.
     :param region:         Region corresponding to the image that should be generated
-    :param downsample:     Downsample factor; not needed if region is a RegionRequest
+    :param downsample:     Downsample factor; not needed if region is a Region2D
     :param value:          Pixel value used for draw an object in the image, or an iterable the same length as image_objects
     :param draw_type:      Either 'fill', 'outline' or 'both'.
     :param im:             Image where the output should be drawn (optional).
@@ -39,16 +84,19 @@ def rasterize(image_objects: Union[Iterable[ROI], Iterable[BaseGeometry], Iterab
     if not do_fill and not do_outline:
         raise ValueError(f"Rasterize called with draw_type other than 'fill', 'outline' or 'both'")
 
-    image_objects = utils._ensure_iterable(image_objects)
+    image_objects = list(image_objects)
 
-    geometries = [utils._to_geometry(o, prefer_nucleus=prefer_nucleus) for o in image_objects]
+    # TODO: Make this sensible... currently generates GeoJSON geometries because these can include z and t, AND
+    #       shapely geometries required for drawing
+    preferred_geom = _NUCLEUS_GEOMETRY_KEY if prefer_nucleus else None
+    geometries = [to_geometry(o, preferred_geometry=preferred_geom) for o in image_objects]
+    shapely_geometries = [utils._to_geometry(geom) for geom in geometries]
 
     # Generate region bounds around objects, if needed
     if region is None:
-        rois = [_to_roi(o, prefer_nucleus=prefer_nucleus) for o in image_objects]
-        all_bounds = np.row_stack([r.geometry.bounds for r in rois if r is not None])
-        z = list(set([r.z for r in rois if r.roi is not None]))
-        t = list(set([r.t for r in rois if r.roi is not None]))
+        all_bounds = np.row_stack([geom.bounds for geom in shapely_geometries if geom is not None])
+        z = list(set([g.plane.z for g in geometries if g is not None]))
+        t = list(set([g.plane.t for g in geometries if g is not None]))
         if len(z) != 1 or len(t) != 1:
             raise ValueError('ImageObjects must all fall on a single plane (with equal values of z and t)')
         xy = np.floor(np.min(all_bounds[:, :2], axis=0))
@@ -56,15 +104,15 @@ def rasterize(image_objects: Union[Iterable[ROI], Iterable[BaseGeometry], Iterab
         region = Region2D(downsample=downsample,
                           x=int(xy[0]),
                           y=int(xy[1]),
-                          w=int(wh[0]),
-                          h=int(wh[1]),
+                          width=int(wh[0]),
+                          height=int(wh[1]),
                           z=z[0],
                           t=t[0])
 
     envelope = Polygon.from_bounds(region.x, region.y, region.x + region.width, region.y + region.height)
 
     # Filter out geometries beyond the bounds
-    geometries = [g for g in geometries if envelope.intersects(g.envelope)]
+    geometries = [g for g in shapely_geometries if envelope.intersects(g.envelope)]
 
     # Identify the maximum value the image should contain
     multiple_values = isinstance(value, Iterable)
@@ -171,6 +219,7 @@ def _draw_linestring(line_string: LineString, draw: ImageDraw, close_path: bool 
         )
     vertices, codes = utils._linestring_to_vertices(line_string, close_path=close_path, **args)
     draw.polygon(list(vertices.flatten()), fill=fill, outline=outline)
+
 
 def _ensure_classification(obj):
     if obj is None:
