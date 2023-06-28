@@ -1,8 +1,10 @@
+import imageio.v3
+
 from ..images import ImageServer, PixelLength, PixelCalibration, ImageServerMetadata, ImageShape, ImageChannel
 from ..images.servers import _validate_block, _resize
 
 from dataclasses import astuple
-from typing import List, Tuple, Iterable, Union
+from typing import List, Tuple, Iterable, Union, TypeVar, Optional
 from py4j.java_gateway import JavaGateway, JavaObject, GatewayParameters
 
 from imageio.v3 import imread
@@ -26,6 +28,8 @@ import os
 Store default Gateway so it doesn't need to always be passed as a parameter
 """
 _default_gateway: JavaGateway = None
+
+InputType = TypeVar('InputType', JavaGateway, JavaObject)
 
 
 class QuPathServer(ImageServer):
@@ -138,17 +142,11 @@ class QuPathServer(ImageServer):
         else:
             fmt = 'png' if self.is_rgb else "imagej tiff"
             fmt = "imagej tiff"
+            is_rgb = self.metadata.is_rgb or self.n_channels == 1
             if self._pixel_access == 'bytes':
-                byte_array = gateway.entry_point.getImageBytes(server, request, fmt)
+                im = _imread_bytes(gateway.entry_point.getImageBytes(server, request, fmt), is_rgb=is_rgb)
             else:
-                im_base64 = gateway.entry_point.getImageBase64(server, request, fmt)
-                byte_array = base64.b64decode(im_base64)
-
-            if self.metadata.is_rgb or self.n_channels == 1:
-                im = imread(byte_array)
-            else:
-                # We can just provide 2D images; using volread move to channels-last
-                im = np.moveaxis(volread(byte_array), 0, -1)
+                im = _imread_base64(gateway.entry_point.getImageBase64(server, request, fmt), is_rgb=is_rgb)
 
         end_time = time.time()
         print(f'Read time: {end_time - start_time:.2f} seconds')
@@ -239,11 +237,35 @@ def _gateway_or_default(*args, **kwargs):
     return gateway
 
 
+def _imread_bytes(byte_array: bytes, is_rgb: bool = False) -> np.ndarray:
+    if is_rgb:
+        return imread(byte_array)
+    else:
+        # We can just provide 2D images; using volread move to channels-last
+        return np.moveaxis(volread(byte_array), 0, -1)
+
+
+def _imread_base64(data: str, is_rgb: bool = True) -> np.ndarray:
+    byte_array = base64.b64decode(data)
+    return _imread_bytes(byte_array=byte_array, is_rgb=is_rgb)
+
+
+def create_snapshot(input: Optional[InputType] = None, snapshot_type: str = 'qupath') -> np.ndarray:
+    gateway = _gateway_or_default(input)
+    qp = gateway.entry_point
+    if snapshot_type == 'qupath' or snapshot_type is None:
+        return _imread_base64(qp.snapshotBase64(qp.getQuPath()), is_rgb=True)
+    elif snapshot_type == 'viewer':
+        return _imread_base64(qp.snapshotBase64(qp.getCurrentViewer()), is_rgb=True)
+    else:
+        raise ValueError(f'Unknown snapshot_type {snapshot_type}')
+
+
 def _get_java_class_name(input: JavaObject) -> str:
     return str(input.getClass().getName())
 
 
-def _get_java_image_data(input) -> JavaObject:
+def _get_java_image_data(input: Optional[InputType] = None) -> JavaObject:
     """
     Get an ImageData from the input, if possible.
     """
@@ -258,7 +280,7 @@ def _get_java_image_data(input) -> JavaObject:
     return None
 
 
-def _get_java_hierarchy(input) -> JavaObject:
+def _get_java_hierarchy(input: Optional[InputType] = None) -> JavaObject:
     """
     Get a PathObjectHierarchy from the input, if possible.
     """
@@ -270,7 +292,7 @@ def _get_java_hierarchy(input) -> JavaObject:
     return None if image_data is None else image_data.getHierarchy()
 
 
-def _get_java_server(input) -> JavaObject:
+def _get_java_server(input: Optional[InputType] = None) -> JavaObject:
     """
     Get an ImageServer from the input, if possible.
     """
@@ -282,14 +304,6 @@ def _get_java_server(input) -> JavaObject:
                 return input
     image_data = _get_java_image_data(input)
     return None if image_data is None else image_data.getServer()
-
-
-class ExtendedGeoJsonEncoder(geojson.GeoJSONEncoder):
-    def default(self, o):
-        import dataclasses
-        if dataclasses.is_dataclass(o):
-            return dataclasses.asdict(o)
-        return super().default(o)
 
 
 def add_objects(features: List[Feature], image_data: JavaObject = None, gateway: JavaGateway = None):
@@ -313,7 +327,7 @@ def add_object(features: Feature, image_data: JavaObject = None, gateway: JavaGa
     add_objects(list(features), image_data=image_data, gateway=gateway)
 
 
-def delete_all_objects(input=None):
+def delete_all_objects(input: Optional[InputType] = None):
     image_data = _get_java_image_data(input)
     if image_data is not None:
         image_data.getHierarchy().clearAll()
@@ -322,33 +336,34 @@ def delete_all_objects(input=None):
 def _delete_objects(image_data: JavaObject, path_objects: List[JavaObject]):
     if image_data is not None and path_objects:
         image_data.getHierarchy().removeObjects(path_objects, True)
+        image_data.getHierarchy().getSelectionModel().clearSelection()
 
 
-def delete_detections(input=None):
+def delete_detections(input: Optional[InputType] = None):
     image_data = _get_java_image_data(input)
     if image_data is not None:
         _delete_objects(image_data=image_data, path_objects=image_data.getHierarchy().getDetectionObjects())
 
 
-def delete_annotations(input=None):
+def delete_annotations(input: Optional[InputType] = None):
     image_data = _get_java_image_data(input)
     if image_data is not None:
         _delete_objects(image_data=image_data, path_objects=image_data.getHierarchy().getAnnotationObjects())
 
 
-def delete_cells(input=None):
+def delete_cells(input: Optional[InputType] = None):
     image_data = _get_java_image_data(input)
     if image_data is not None:
         _delete_objects(image_data=image_data, path_objects=image_data.getHierarchy().getCellObjects())
 
 
-def delete_tiles(input=None):
+def delete_tiles(input: Optional[InputType] = None):
     image_data = _get_java_image_data(input)
     if image_data is not None:
         _delete_objects(image_data=image_data, path_objects=image_data.getHierarchy().getTileObjects())
 
 
-def get_server(input=None) -> ImageServer:
+def get_server(input: Optional[InputType] = None) -> ImageServer:
     """
     Get an ImageServer from the input
     """
@@ -360,7 +375,8 @@ def get_server(input=None) -> ImageServer:
         server_obj=server)
 
 
-def get_dask_array(input=None, downsamples: Union[float, Iterable[float]] = None, **kwargs) -> da.Array:
+def get_dask_array(input: Optional[InputType] = None, downsamples: Union[float, Iterable[float]] = None,
+                   **kwargs) -> da.Array:
     """
     Get one or more dask arrays corresponding to the image currently open in QuPath.
     """
@@ -369,27 +385,41 @@ def get_dask_array(input=None, downsamples: Union[float, Iterable[float]] = None
     return None if server is None else to_dask(server, downsamples=downsamples, **kwargs)
 
 
-def get_detections(input=None, **kwargs) -> List[Feature]:
+def get_detections(input: Optional[InputType] = None, **kwargs) -> List[Feature]:
     return get_objects(input, object_type=types.DETECTION, **kwargs)
 
 
-def get_cells(input=None, **kwargs) -> List[Feature]:
+def get_cells(input: Optional[InputType] = None, **kwargs) -> List[Feature]:
     return get_objects(input, object_type=types.CELL, **kwargs)
 
 
-def get_tiles(input=None, **kwargs) -> List[Feature]:
+def get_tiles(input: Optional[InputType] = None, **kwargs) -> List[Feature]:
     return get_objects(input, object_type=types.TILE, **kwargs)
 
 
-def get_tma_cores(input=None, **kwargs) -> List[Feature]:
+def get_tma_cores(input: Optional[InputType] = None, **kwargs) -> List[Feature]:
     return get_objects(input, object_type=types.TMA_CORE, **kwargs)
 
 
-def get_annotations(input=None, **kwargs) -> List[Feature]:
+def get_annotations(input: Optional[InputType] = None, **kwargs) -> List[Feature]:
     return get_objects(input, object_type=types.ANNOTATION, **kwargs)
 
 
-def get_objects(input=None, object_type: str = None, gateway=None, to_image_object=True) -> List[Feature]:
+def get_objects(input: Optional[InputType] = None, object_type: str = None, gateway: JavaGateway = None,
+                return_type: str = 'object') -> List[Feature]:
+    """
+    Get the objects from the current or specified image in QuPath.
+
+    :param input: optional input to control from where the objects are obtained.
+                  This could be an ImageData or PathObjectHierarchy instance.
+    :param object_type: the type of object to get, e.g. 'detection', 'annotation', 'cell', tile'.
+                        Default is to get all objects, except the root.
+    :param gateway: the JavaGateway
+    :param return_type: the type of the objects to return. Options are
+                - 'qupath' - a native JavaObject
+                - 'feature' - a GeoJSON feature
+                - 'qubalab' - an ImageObject
+    """
     gateway = _gateway_or_default(input, gateway)
     hierarchy = _get_java_hierarchy(input)
     if hierarchy is None:
@@ -409,15 +439,27 @@ def get_objects(input=None, object_type: str = None, gateway=None, to_image_obje
         tma_grid = hierarchy.getTMAGrid()
         path_objects = [] if tma_grid is None else tma_grid.getTMACoreList()
 
+    if return_type == 'qupath':
+        return path_objects
+
     features = []
     # Use toFeatureCollections for performance and to avoid string length troubles
     for sublist in gateway.entry_point.toFeatureCollections(path_objects, 1000):
         features.extend(_geojson_features_from_string(sublist, parse_constant=None))
 
-    if to_image_object:
-        return [_as_image_object(f) for f in features]
-    else:
+    if return_type == 'feature':
         return features
+    else:
+        return [_as_image_object(f) for f in features]
+
+
+def num_objects(input: Optional[InputType] = None, object_type: str = None) -> int:
+    """
+    Get a count of all objects in the current or specified image.
+    Since requesting the objects can be slow, this can be used to check if a reasonable
+    number of objects is available.
+    """
+    return len(get_objects(input=input, object_type=object_type, return_type='qupath'))
 
 
 def _geojson_features_from_string(json_string: str, **kwargs):
