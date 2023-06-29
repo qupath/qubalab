@@ -1,3 +1,5 @@
+import geojson.mapping
+
 from . import ImageServerMetadata
 from .servers import WrappedImageServer, ImageServer, Region2D
 from ..objects.geometries import to_geometry
@@ -35,24 +37,36 @@ def labels_to_features(lab: np.ndarray, object_type='annotation', connectivity: 
         transform = Affine.scale(downsample)
 
     # Trace geometries
-    for s in rasterio.features.shapes(lab, mask=mask,
+    existing_features = {}
+    merged_features = False
+    for geometry, label in rasterio.features.shapes(lab, mask=mask,
                                       connectivity=connectivity, transform=transform):
 
-        # Create properties
-        props = dict(object_type=object_type)
-        if include_labels:
-            props['measurements'] = [{'name': 'Label', 'value': s[1]}]
+        if label in existing_features:
+            geom = shape(geometry).union(shape(existing_features[label]['geometry']))
+            existing_features[label]['geometry'] = geom
+            merged_features = True
+        else:
+            # Create properties
+            props = dict(object_type=object_type)
+            if include_labels:
+                props['measurements'] = {'Label': float(label)}
 
-        # Add a classification if we have one
-        if isinstance(classification, str):
-            props['classification'] = classification
-        elif isinstance(classification, dict):
-            props['classification'] = get_classification(s[1], classification)
+            # Add a classification if we have one
+            if isinstance(classification, str):
+                props['classification'] = classification
+            elif isinstance(classification, dict):
+                props['classification'] = get_classification(label, classification)
 
-        # Wrap in a dict to effectively create a GeoJSON Feature
-        po = dict(type="Feature", geometry=s[0], properties=props)
+            # Wrap in a dict to effectively create a GeoJSON Feature
+            feature = dict(type="Feature", geometry=geometry, properties=props)
+            existing_features[label] = feature
+            features.append(feature)
 
-        features.append(po)
+    # If we've been merging, we need to ensure we have GeoJSON-compatible geometries
+    if merged_features:
+        for feature in features:
+            feature['geometry'] = geojson.mapping.to_mapping(feature['geometry'])
 
     return features
 

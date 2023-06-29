@@ -7,6 +7,7 @@ from geojson import Feature
 from geojson.geometry import Geometry
 from typing import Iterable, Union, Dict, Any
 import random
+import math
 
 
 _cached_classifications = {}
@@ -118,6 +119,22 @@ class ImageObject(Feature):
         # TODO: Consider consistently changing color tuples to float (and supporting alpha)
         return self.properties.get('color')
 
+    @classmethod
+    def _validate_rgb_value(self, value: [int, float]) -> int:
+        if isinstance(value, float):
+            value = int(math.round(value * 255))
+        if isinstance(value, int):
+            if value >= 0 and value <= 255:
+                return value
+        raise ValueError('Color value must be an int between 0 and 255, or a float between 0 and 1')
+
+    @color.setter
+    def color(self, rgb: Union[Tuple[int, int, int], Tuple[float, float, float]]):
+        if len(rgb) != 3:
+            raise ValueError('Color must be a tuple of length 3')
+        rgb = tuple(ImageObject._validate_rgb_value(v) for v in rgb)
+        self.properties['color'] = rgb
+
     @property
     def measurements(self) -> Dict[str, float]:
         measurements = self.properties.get('measurements')
@@ -125,6 +142,11 @@ class ImageObject(Feature):
             measurements = {}
             self.properties['measurements'] = measurements
         return measurements
+
+    @measurements.setter
+    def measurements(self, measurements: Dict[str, float]):
+        self.properties['measurements'] = {str(k): float(v) for k, v in measurements.items()}
+
 
     @property
     def nucleus_geometry(self) -> Geometry:

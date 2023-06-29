@@ -88,7 +88,10 @@ def show_image(image: Union[np.ndarray, ImageServer] = None,
                 geom = shape(roi)
                 if envelope is not None and not envelope.intersects(geom.envelope):
                     continue
-                color = default_color
+                try:
+                    color = [float(c)/255.0 for c in image_object.color]
+                except:
+                    color = default_color
                 face_color = default_face_color
                 classification = getattr(image_object, 'classification', None)
                 if classification is not None and 'color' in classification:

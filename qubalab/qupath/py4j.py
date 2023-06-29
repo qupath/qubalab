@@ -1,4 +1,5 @@
 import imageio.v3
+from py4j.protocol import Py4JNetworkError
 
 from ..images import ImageServer, PixelLength, PixelCalibration, ImageServerMetadata, ImageShape, ImageChannel
 from ..images.servers import _validate_block, _resize
@@ -141,7 +142,6 @@ class QuPathServer(ImageServer):
             os.remove(temp_path)
         else:
             fmt = 'png' if self.is_rgb else "imagej tiff"
-            fmt = "imagej tiff"
             is_rgb = self.metadata.is_rgb or self.n_channels == 1
             if self._pixel_access == 'bytes':
                 im = _imread_bytes(gateway.entry_point.getImageBytes(server, request, fmt), is_rgb=is_rgb)
@@ -149,7 +149,7 @@ class QuPathServer(ImageServer):
                 im = _imread_base64(gateway.entry_point.getImageBase64(server, request, fmt), is_rgb=is_rgb)
 
         end_time = time.time()
-        print(f'Read time: {end_time - start_time:.2f} seconds')
+        # print(f'Read time: {end_time - start_time:.2f} seconds')
 
         if height != im.shape[0] or width != im.shape[1]:
             shape_before = im.shape
@@ -157,6 +157,14 @@ class QuPathServer(ImageServer):
             warnings.warn(f'Block needs to be reshaped from {shape_before} to {im.shape}')
 
         return im
+
+    def level_to_dask(self, level: int = 0):
+        # TODO: This is using old code to convert to dask - should be updated (check pyramid.to_dask docstring)
+        from ..images.pyramid import to_dask as pyramid_to_dask
+        from dask import array as da
+        array = pyramid_to_dask(self, downsamples=self.downsamples[level])
+        # We want AICSImageIO dimension ordering, therefore TCZYX[S], where S is for RGB samples
+        return da.expand_dims(array, axis=(0, 1, 2))
 
 
 def _unpack_color(rgb: int) -> Tuple[float, float, float]:
@@ -207,6 +215,12 @@ def create_gateway(auto_convert=True, auth_token=None, set_as_default=True, **kw
         #     java_parameters=JavaParameters(auto_convert=auto_convert),
         #     python_parameters=PythonParameters())
         gateway = JavaGateway(auto_convert=auto_convert, **kwargs)
+    try:
+        # This will fail if QuPath is not running with a Py4J gateway
+        qupath = gateway.entry_point.getQuPath()
+        assert qupath is not None
+    except (Py4JNetworkError, AssertionError) as err:
+        raise RuntimeError('Could not connect to QuPath - is it running, and you have opened a Py4J gateway?') from err
     if set_as_default:
         set_default_gateway(gateway)
     return gateway
@@ -223,7 +237,7 @@ def set_default_gateway(gateway: JavaGateway = None):
 def _gateway_or_default(*args, **kwargs):
     """
     Attempt to get a gateway, by
-    * returning one of the input argument, if it's a gateway
+    * returning one of the input arguments, if it's a gateway
     * returning the default gateway, if available
     * creating a new gateway using the **kwargs (if needed, and displaying a warning)
     """
@@ -291,6 +305,12 @@ def _get_java_hierarchy(input: Optional[InputType] = None) -> JavaObject:
     image_data = _get_java_image_data(input)
     return None if image_data is None else image_data.getHierarchy()
 
+def _is_instance_of_interface(input: JavaObject, interface_name: str) -> bool:
+    if isinstance(input, JavaObject):
+        for cls in input.getClass().getInterfaces():
+            if str(cls.getName()) == interface_name:
+                return True
+    return False
 
 def _get_java_server(input: Optional[InputType] = None) -> JavaObject:
     """
@@ -299,11 +319,28 @@ def _get_java_server(input: Optional[InputType] = None) -> JavaObject:
     # Could use this, but then we definitely need a gateway
     #    cls_server = gateway.jvm.Class.forName('qupath.lib.images.servers.ImageServer')
     if isinstance(input, JavaObject):
-        for cls in input.getClass().getInterfaces():
-            if str(cls.getName()) == 'qupath.lib.images.servers.ImageServer':
-                return input
+        if (_is_instance_of_interface(input, 'qupath.lib.images.servers.ImageServer')):
+            return input
     image_data = _get_java_image_data(input)
     return None if image_data is None else image_data.getServer()
+
+
+def _get_java_project(input: Optional[InputType] = None) -> JavaObject:
+    """
+    Get a project from the input, if possible.
+    """
+    # Could use this, but then we definitely need a gateway
+    #    cls_server = gateway.jvm.Class.forName('qupath.lib.images.servers.ImageServer')
+    if isinstance(input, JavaObject):
+        cls = _get_java_class_name(input)
+        if cls == 'qupath.lib.gui.QuPathGUI':
+            return input.getProject()
+        if _is_instance_of_interface(input, 'qupath.lib.projects.Project'):
+            return input
+    gateway = _gateway_or_default(input)
+    if gateway is not None:
+        return gateway.entry_point.getProject()
+    return None
 
 
 def add_objects(features: List[Feature], image_data: JavaObject = None, gateway: JavaGateway = None):
@@ -406,7 +443,7 @@ def get_annotations(input: Optional[InputType] = None, **kwargs) -> List[Feature
 
 
 def get_objects(input: Optional[InputType] = None, object_type: str = None, gateway: JavaGateway = None,
-                return_type: str = 'object') -> List[Feature]:
+                converter: str = None) -> List[Feature]:
     """
     Get the objects from the current or specified image in QuPath.
 
@@ -415,10 +452,9 @@ def get_objects(input: Optional[InputType] = None, object_type: str = None, gate
     :param object_type: the type of object to get, e.g. 'detection', 'annotation', 'cell', tile'.
                         Default is to get all objects, except the root.
     :param gateway: the JavaGateway
-    :param return_type: the type of the objects to return. Options are
-                - 'qupath' - a native JavaObject
-                - 'feature' - a GeoJSON feature
-                - 'qubalab' - an ImageObject
+    :param converter: Can be 'geojson' to get an extended GeoJSON feature, represented as a QuBaLab 'ImageObject',
+                    or 'simple_feature' to get a regular GeoJSON 'Feature'.
+                    If None, then the default is to return the Py4J representation of the QuPath Java object.
     """
     gateway = _gateway_or_default(input, gateway)
     hierarchy = _get_java_hierarchy(input)
@@ -439,18 +475,19 @@ def get_objects(input: Optional[InputType] = None, object_type: str = None, gate
         tma_grid = hierarchy.getTMAGrid()
         path_objects = [] if tma_grid is None else tma_grid.getTMACoreList()
 
-    if return_type == 'qupath':
-        return path_objects
+    if converter == 'geojson' or converter == 'simple_feature':
+        # Use toFeatureCollections for performance and to avoid string length troubles
+        features = []
+        for sublist in gateway.entry_point.toFeatureCollections(path_objects, 1000):
+            features.extend(_geojson_features_from_string(sublist, parse_constant=None))
 
-    features = []
-    # Use toFeatureCollections for performance and to avoid string length troubles
-    for sublist in gateway.entry_point.toFeatureCollections(path_objects, 1000):
-        features.extend(_geojson_features_from_string(sublist, parse_constant=None))
+        if converter == 'simple_feature':
+            return features
+        else:
+            return [_as_image_object(f) for f in features]
 
-    if return_type == 'feature':
-        return features
-    else:
-        return [_as_image_object(f) for f in features]
+    return path_objects
+
 
 
 def num_objects(input: Optional[InputType] = None, object_type: str = None) -> int:
@@ -512,9 +549,18 @@ def _as_image_object(feature: Feature) -> ImageObject:
     return ImageObject(**args)
 
 
+def refresh_qupath(gateway: JavaGateway = None):
+    gateway = _gateway_or_default(gateway)
+    gateway.entry_point.fireHierarchyUpdate()
+
+
 def _find_property(feature: Feature, property_name: str, default_value=None):
     if property_name in feature:
         return feature[property_name]
     if 'properties' in feature and property_name in feature['properties']:
         return feature['properties'][property_name]
     return default_value
+
+
+def get_project(input: Optional[InputType] = None) -> JavaObject:
+    return _get_java_project(input)
