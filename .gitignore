@@ -133,5 +133,4 @@ dmypy.json
 .pyre/
 
 # IDE
-.idea/notebooks
-notebooks/
+.idea/
