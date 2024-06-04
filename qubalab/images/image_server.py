@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 from typing import Union
 import numpy as np
+import warnings
 from abc import ABC, abstractmethod
 from PIL import Image
-from image_channel import ImageChannel
-from image_shape import ImageShape
-from pixel_calibration import PixelCalibration
-from region_2d import Region2D
+from .image_channel import ImageChannel
+from .image_shape import ImageShape
+from .pixel_calibration import PixelCalibration
+from .region_2d import Region2D
 
 
 @dataclass
@@ -18,7 +19,7 @@ class ImageServerMetadata:
     :param name: the image name
     :param shapes: the image shape, for each resolution of the image
     :param pixel_calibration: the pixel calibration information of the image
-    :param is_rgb: whether the image is RGB
+    :param is_rgb: whether pixels of the image are stored with the RGB format
     :param dtype: the type of the pixel values
     :param channels: the channels of the image
     """
@@ -36,12 +37,35 @@ class ImageServer(ABC):
     An abtract class to read pixels and metadata of an image.
     """
 
-    """
-    Create the ImageServer.
+    _DEFAULT_CHANNEL_SINGLE = (
+        ImageChannel(name='Single channel', color=(1, 1, 1)),
+    )
+    _DEFAULT_CHANNEL_RGB = (
+        ImageChannel(name='Red', color=(1, 0, 0)),
+        ImageChannel(name='Green', color=(0, 1, 0)),
+        ImageChannel(name='Green', color=(0, 0, 1)),
+    )
 
-    :param resize_method: the resampling method to use when resizing the image for downsampling. Bicubic by default
-    """
+    _DEFAULT_CHANNEL_TWO = (
+        ImageChannel(name='Channel 1', color=(1, 0, 1)),
+        ImageChannel(name='Channel 2', color=(0, 1, 0))
+    )
+
+    _DEFAULT_CHANNEL_COLORS = (
+        (0, 1, 1),
+        (1, 1, 0),
+        (1, 0, 1),
+        (1, 0, 0),
+        (0, 1, 0),
+        (0, 0, 1)
+    )
+
     def __init__(self, resize_method: Image.Resampling = Image.Resampling.BICUBIC):
+        """
+        Create the ImageServer.
+
+        :param resize_method: the resampling method to use when resizing the image for downsampling. Bicubic by default
+        """
         super().__init__()
         self._metadata = None
         self._downsamples = None
@@ -67,6 +91,156 @@ class ImageServer(ABC):
         :return: a numpy array containing the requested pixels from the 2D region, in the order [y, x, c]
         """
         pass
+
+    @abstractmethod
+    def _build_metadata(self) -> ImageServerMetadata:
+        """
+        Create metadata for the current image.
+
+        :return: the metadata of the image
+        """
+        pass
+
+    @abstractmethod
+    def close(self):
+        """
+        Close this image server.
+        
+        This should be called whenever this server is not used anymore.
+        """
+        pass
+
+    @property
+    def resize_method(self) -> Image.Resampling:
+        """
+        Resampling method to use when resizing the image for downsampling.
+
+        Subclasses can override this, e.g. to enforce nearest neighbor resampling for label images.
+        """
+        return self._resize_method
+
+    @property
+    def channels(self) -> tuple[ImageChannel, ...]:
+        """
+        The channels of the image.
+        """
+        # Get from metadata as most recent channels
+        channels = self.metadata.channels
+        if channels:
+            return channels
+        # Cache default channels if we don't have them already
+        if not self._channels:
+            if self.n_channels == 1:
+                channels = self._DEFAULT_CHANNEL_SINGLE
+            elif self.n_channels == 2:
+                channels = self._DEFAULT_CHANNEL_TWO
+            elif self.is_rgb:
+                channels = self._DEFAULT_CHANNEL_RGB
+            else:
+                channels = [
+                    ImageChannel(
+                        f'Channel {ii + 1}',
+                        self._DEFAULT_CHANNEL_COLORS[ii % len(self._DEFAULT_CHANNEL_COLORS)]
+                    ) for ii in range(self.n_channels)
+                ]
+            self._channels = channels
+        return self._channels
+
+    @property
+    def is_rgb(self) -> bool:
+        """
+        Whether pixels are stored with the RGB format.
+        """
+        return self.metadata.is_rgb
+
+    @property
+    def metadata(self) -> ImageServerMetadata:
+        """
+        The image metadata.
+        """
+        if self._metadata is None:
+            self._metadata = self._build_metadata()
+        return self._metadata
+
+    @property
+    def shape(self) -> ImageShape:
+        """
+        The dimensions of the full-resolution image.
+        """
+        return self.metadata.shapes[0]
+
+    @property
+    def dtype(self) -> np.dtype:
+        """
+        The type of the pixel values.
+        """
+        return self.metadata.dtype
+
+    @property
+    def width(self) -> int:
+        """
+        The width of the full-resolution image.
+        """
+        return self.shape.x
+
+    @property
+    def height(self) -> int:
+        """
+        The height of the full-resolution image.
+        """
+        return self.shape.y
+
+    @property
+    def n_channels(self) -> int:
+        """
+        The number of channels of the image.
+        """
+        return self.shape.c
+
+    @property
+    def n_resolutions(self) -> int:
+        """
+        The number of resolutions of the image.
+        """
+        return len(self.metadata.shapes)
+
+    @property
+    def n_timepoints(self) -> int:
+        """
+        The number of time points of the image.
+        """
+        return self.shape.t
+
+    @property
+    def n_z_slices(self) -> int:
+        """
+        The number of z-slices of the image.
+        """
+        return self.shape.z
+
+    @property
+    def downsamples(self) -> tuple[float, ...]:
+        """
+        The downsamples of the image.
+        """
+        if not self._downsamples:
+            main_shape = self.metadata.shapes[0]
+            self._downsamples = tuple(self._estimate_downsample(main_shape, s) for s in self.metadata.shapes)
+        return self._downsamples
+
+    @property
+    def path(self) -> str:
+        """
+        The local path to the image.
+        """
+        return self.metadata.path
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the image.
+        """
+        return self.metadata.name
 
     def read_region(self,
                     region: Union[Region2D, tuple[int, ...]] = None,
@@ -138,18 +312,6 @@ class ImageServer(ABC):
             target_size = (round(region.width / region.downsample), round(region.height / region.downsample))
             return self._resize(image, target_size, self.resize_method)
 
-    @property
-    def resize_method(self) -> Image.Resampling:
-        """
-        Resampling method to use when resizing the image for downsampling.
-        Subclasses can override this, e.g. to enforce nearest neighbor resampling for label images.
-        """
-        return self._resize_method
-
-    @abstractmethod
-    def _build_metadata(self) -> ImageServerMetadata:
-        ...
-
     def rebuild_metadata(self):
         """
         Request that the metadata is rebuilt.
@@ -159,154 +321,6 @@ class ImageServer(ABC):
         around some mutable instance).
         """
         self._metadata = self._build_metadata()
-
-    @property
-    def channels(self) -> Tuple[ImageChannel, ...]:
-        # Get from metadata as most recent channels
-        channels = self.metadata.channels
-        if channels:
-            return channels
-        # Cache default channels if we don't have them already
-        if not self._channels:
-            if self.n_channels == 1:
-                channels = _DEFAULT_CHANNEL_SINGLE
-            elif self.n_channels == 2:
-                channels = _DEFAULT_CHANNEL_TWO
-            elif self.is_rgb:
-                channels = _DEFAULT_CHANNEL_RGB
-            else:
-                channels = [ImageChannel(f'Channel {ii + 1}',
-                                         _DEFAULT_CHANNEL_COLORS[ii % len(_DEFAULT_CHANNEL_COLORS)]) for ii in
-                            range(self.n_channels)]
-            self._channels = channels
-        return self._channels
-
-    @property
-    def is_rgb(self) -> bool:
-        return self.metadata.is_rgb
-
-    def _dim_length(self, dim: int):
-        shape = self.metadata.shape
-        return shape[dim] if len(shape) > dim else 1
-
-    @property
-    def metadata(self) -> ImageServerMetadata:
-        if self._metadata is None:
-            self._metadata = self._build_metadata()
-        return self._metadata
-
-    @property
-    def shape(self) -> ImageShape:
-        return self.metadata.shapes[0]
-
-    @property
-    def dtype(self) -> np.dtype:
-        return self.metadata.dtype
-
-    @property
-    def width(self) -> int:
-        return self.shape.x
-
-    @property
-    def height(self) -> int:
-        return self.shape.y
-
-    @property
-    def n_channels(self) -> int:
-        return self.shape.c
-
-    @property
-    def n_resolutions(self) -> int:
-        return len(self.metadata.shapes)
-
-    @property
-    def n_timepoints(self) -> int:
-        return self.shape.t
-
-    @property
-    def n_z_slices(self) -> int:
-        return self.shape.z
-
-    @property
-    def downsamples(self) -> Tuple[float, ...]:
-        if not self._downsamples:
-            main_shape = self.metadata.shapes[0]
-            self._downsamples = tuple(_estimate_downsample(main_shape, s) for s in self.metadata.shapes)
-        return self._downsamples
-
-    @property
-    def path(self) -> str:
-        return self.metadata.path
-
-    @property
-    def name(self) -> str:
-        return self.metadata.name
-
-    def close(self):
-        pass
-
-    def level_to_dask(self, level: int = 0):
-        """
-        Convert a single pyramid level to a dask array.
-
-        :param level: the pyramid level (0 is full resolution)
-        """
-        pass
-
-    def to_dask(self, downsample: Union[float, Iterable[float]] = None):
-        """
-        Convert this image to one or more dask arrays, at any arbitary downsample factor.
-
-        TODO: Consider API that creates downsamples from requested pixel sizes, since these are more intuitive.
-
-        :param: downsample the downsample factor to use, or a list of downsample factors to use.
-                If None, all available resolutions will be used.
-        :return: a dask array or tuple of dask arrays, depending upon whether one or more downsample factors are required
-        """
-
-        if downsample is None:
-            if self.n_resolutions == 1:
-                return self.level_to_dask(level=0)
-            else:
-                return tuple([self.level_to_dask(level=level) for level in range(self.n_resolutions)])
-
-        if isinstance(downsample, Iterable):
-            return tuple([self.to_dask(downsample=float(d)) for d in downsample])
-
-        level = _get_level(self.downsamples, downsample)
-        array = self.level_to_dask(level=level)
-
-        # Check if we need to resize the array
-        # Don't rely on rescale to be exactly equal to 1.0, and instead check if we need a different output size
-        rescale = downsample / self.downsamples[level]
-        input_width = array.shape[3]
-        input_height = array.shape[2]
-        output_width = int(round(input_width / rescale))
-        output_height = int(round(input_height / rescale))
-        if input_width == output_width and input_height == output_height:
-            return array
-
-        # Couldn't find an easy resizing method for dask arrays... so we try this instead
-
-        # TODO: Urgently need something better! Performance is terrible for large images - all pixels requested
-        #       upon first compute (even for a small region), and then resized. This is not scalable.
-
-        if array.size > 10000:
-            print('Warning - calling affine_transform on a large dask array can be *very* slow')
-
-        from dask_image.ndinterp import affine_transform
-        from dask import array as da
-        array = da.asarray(array)
-        transform = np.eye(array.ndim)
-        transform[2, 2] = rescale
-        transform[3, 3] = rescale
-        # Not sure why rechunking is necessary here, but it is
-        array = da.rechunk(array)
-        array = affine_transform(array,
-                                 transform,
-                                 order=1,
-                                 output_chunks=array.chunks)
-        return array[:, :, :output_height, :output_width, ...]
     
 
     def _get_level(self, downsample: float, abs_tol=1e-3) -> int:
@@ -371,9 +385,37 @@ class ImageServer(ABC):
                     return np.atleast_3d(image_channels[0])
                 else:
                     return np.stack(image_channels, axis=-1)
+    
+    def _estimate_downsample(self, main_shape: ImageShape, secondary_shape: ImageShape) -> float:
+        """
+        Estimate the downsample factor between two ImageShapes.
+        
+        This is used to prefer values like 4 rather than 4.000345, which arise due to resolutions having to have
+        integer pixel dimensions.
+        """
+        dx = main_shape.x / secondary_shape.x
+        dy = main_shape.y / secondary_shape.y
+        downsample = (dx + dy) / 2.0
+        downsample_round = round(downsample)
+
+        if (
+            self._possible_downsample(main_shape.x, secondary_shape.x, downsample_round) and
+            self._possible_downsample(main_shape.y, secondary_shape.y, downsample_round)
+        ):
+            if downsample != downsample_round:
+                warnings.warn(f'Returning rounded downsample value {downsample_round} instead of {downsample}')
+            return downsample_round
+        return downsample
         
     def _get_size(self, image: Union[np.ndarray, Image.Image]):
         """
         Get the size of an image as a two-element tuple (width, height).
         """
         return image.size if isinstance(image, Image.Image) else image.shape[:2][::-1]
+
+    def _possible_downsample(self, x1: int, x2: int, downsample: float) -> bool:
+        """
+        Determine if an image dimension is what you'd expect after downsampling, and then flooring/rounding to decide
+        the new dimension.
+        """
+        return int(int(x1 / downsample) * downsample) == x2 or int(round(int(round(x1 / downsample)) * downsample)) == x2

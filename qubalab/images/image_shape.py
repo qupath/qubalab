@@ -22,22 +22,23 @@ class ImageShape:
     c: int = 1
     z: int = 1
 
-    """
-    Create an ImageShape from a list of arguments.
-    
-    There must be at least five arguments, in the following order: tczyx.
-    :returns: an ImageShape corresponding to the arguments
-    :raises IndexeError: when there are less than five arguments
-    """
     def from_tczyx(*args) -> ImageShape:
+        """
+        Create an ImageShape from a list of arguments.
+        
+        :param args: image width, image height, number of time points, number of channels, number of z-stacks
+                     (in that order)
+        :returns: an ImageShape corresponding to the arguments
+        :raises IndexeError: when there are less than five arguments
+        """
         return ImageShape(t=args[0], c=args[1], z=args[2], y=args[3], x=args[4])
 
-    """
-    Return a tuple describing this ImageShape.
-
-    :param dims: the format the resulting tuple should have. Each character must be one of 'tczyx'
-    :returns: a tuple describing this ImageShape with the specified format
-    :raises AttributeError: when a character of dims is not in 'tczyx'
-    """
     def as_tuple(self, dims: str = 'tczyx') -> tuple:
+        """
+        Return a tuple describing this ImageShape.
+
+        :param dims: the format the resulting tuple should have. Each character must be one of 'tczyx'
+        :returns: a tuple describing this ImageShape with the specified format
+        :raises AttributeError: when a character of dims is not in 'tczyx'
+        """
         return tuple(self.__getattribute__(d) for d in dims)

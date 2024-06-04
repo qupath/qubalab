@@ -9,36 +9,20 @@ homepage = "https://qupath.github.io/"
 repository = "https://github.com/qupath/qubalab"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.12"
-dask = {extras = ["array"], version = "^2023.5.1"}
-zarr = "^2.14.2"
-shapely = "^2.0.1"
-geojson = "^3.0.1"
-imageio = "^2.31.0"
-tiffslide = "^2.1.2"
-botocore = "^1.29.76" # helps to resolve aicsimageio version
-aicsimageio = "^4.11.0"
-dask-image = "^2023.3.0"
-bioformats-jar = {version = "^2020.5.27", optional = true}
-openslide-python = {version = "^1.2.0", markers = "extra == 'openslide' or extra == 'all'", optional = true}
-py4j = {version = ">=0.10.9.0", markers = "extra == 'qupath' or extra == 'all'", optional = true}
+python = "^3.10"
+numpy = "^1.26.4"
+pillow = "^10.3.0"
+zarr = "^2.18.2"
+dask = {extras = ["array"], version = "^2024.5.2"}
 
 [tool.poetry.group.dev.dependencies]
-jupyter = "^1.0.0"
-napari = {extras = ["all"], version = "^0.4.17"}
-rasterio = "^1.3.7"
-scikit-image = "^0.21.0"
-pre-commit = "^3.3.2"
-matplotlib = "^3.7.1"
 
 [tool.poetry.group.test.dependencies]
-pytest = "^7.3.1"
+pytest = "^8.2.1"
 
 [tool.poetry.group.docs.dependencies]
 
 [tool.poetry.extras]
-openslide = ["openslide-python"]
-qupath = ["py4j"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

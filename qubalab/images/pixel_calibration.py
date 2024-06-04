@@ -17,6 +17,8 @@ class PixelLength:
     def is_default(self) -> bool:
         """
         Returns True if this is a default value (length is 1.0 and unit is 'pixels')
+
+        :returns: whether this is a default pixel length
         """
         return self.length == 1.0 and self.unit == 'pixels'
 
@@ -24,6 +26,9 @@ class PixelLength:
     def create_microns(length: float) -> PixelLength:
         """
         Create a PixelLength with a unit of micrometers (µm).
+
+        :param length: the length of the pixel
+        :returns: a pixel length of the provided length with the 'micrometer' unit
         """
         return PixelLength(length=length, unit='micrometer')
 
@@ -31,6 +36,9 @@ class PixelLength:
     def create_unknown(length: float) -> PixelLength:
         """
         Create a PixelLength with an unknown unit.
+
+        :param length: the length of the pixel
+        :returns: a pixel length of the provided length with no unit
         """
         return PixelLength(length=length, unit=None)
 
@@ -48,10 +56,12 @@ class PixelCalibration:
     length_y: PixelLength = PixelLength()
     length_z: PixelLength = PixelLength()
 
-    """
-    Indicate if this PixelCalibration has at least one non-default length.
-    """
     def is_calibrated(self) -> bool:
+        """
+        Indicate if this PixelCalibration has at least one non-default length.
+
+        :returns: whether this PixelCalibration has at least one non-default length
+        """
         for size in [self.length_x, self.length_y, self.length_z]:
             if not size.is_default():
                 return True
