@@ -38,5 +38,5 @@ Instructions will be added here whenever I or someone else figures out what they
 
 Install poetry
 poetry install
-pytest to run tests
+poetry run pytest to run tests
 notebooks
