@@ -2,13 +2,15 @@ from typing import Union
 import numpy as np
 from abc import ABC, abstractmethod
 from PIL import Image
-from .region_2d import Region2D
-from .image_server_metadata import ImageServerMetadata
+from .metadata.region_2d import Region2D
+from .metadata.image_server_metadata import ImageServerMetadata
 
 
 class ImageServer(ABC):
     """
     An abtract class to read pixels and metadata of an image.
+
+    An image server must be closed (see the close() function) once no longer used.
     """
 
     def __init__(self, resize_method: Image.Resampling = Image.Resampling.BICUBIC):
@@ -100,7 +102,7 @@ class ImageServer(ABC):
 
         level = self._get_level(downsample)
         level_downsample = self.metadata.downsamples[self._get_level(downsample)]
-        image = self.read_block(level, region.downsample_region(downsample=level_downsample))
+        image = self._read_block(level, region.downsample_region(downsample=level_downsample))
         
         if downsample == level_downsample:
             return image
@@ -119,7 +121,25 @@ class ImageServer(ABC):
         self._metadata = self._build_metadata()
 
     @abstractmethod
-    def read_block(self, level: int, region: Region2D) -> np.ndarray:
+    def close(self):
+        """
+        Close this image server.
+        
+        This should be called whenever this server is not used anymore.
+        """
+        pass
+
+    @abstractmethod
+    def _build_metadata(self) -> ImageServerMetadata:
+        """
+        Create metadata for the current image.
+
+        :return: the metadata of the image
+        """
+        pass
+
+    @abstractmethod
+    def _read_block(self, level: int, region: Region2D) -> np.ndarray:
         """
         Read a block of pixels from a specific level.
 
@@ -136,24 +156,6 @@ class ImageServer(ABC):
         :return: a 3-dimensional numpy array containing the requested pixels from the 2D region.
                  The [y, x, c] index of the returned array returns the channel of index c of the
                  pixel located at [x, y] on the image
-        """
-        pass
-
-    @abstractmethod
-    def _build_metadata(self) -> ImageServerMetadata:
-        """
-        Create metadata for the current image.
-
-        :return: the metadata of the image
-        """
-        pass
-
-    @abstractmethod
-    def close(self):
-        """
-        Close this image server.
-        
-        This should be called whenever this server is not used anymore.
         """
         pass
     

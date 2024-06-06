@@ -16,6 +16,7 @@ zarr = "^2.18.2"
 dask = {extras = ["array"], version = "^2024.5.2"}
 
 [tool.poetry.group.dev.dependencies]
+jupyter = "^1.0.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.2.1"

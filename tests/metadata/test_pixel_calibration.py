@@ -1,4 +1,4 @@
-from qubalab.images.pixel_calibration import PixelLength, PixelCalibration
+from qubalab.images.metadata.pixel_calibration import PixelLength, PixelCalibration
 
 
 def test_default_pixel_length():

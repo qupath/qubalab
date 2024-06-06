@@ -1,8 +1,8 @@
 import numpy as np
-from qubalab.images.image_shape import ImageShape
-from qubalab.images.image_server_metadata import ImageServerMetadata
-from qubalab.images.pixel_calibration import PixelCalibration, PixelLength
-from qubalab.images.image_channel import ImageChannel
+from qubalab.images.metadata.image_shape import ImageShape
+from qubalab.images.metadata.image_server_metadata import ImageServerMetadata
+from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
+from qubalab.images.metadata.image_channel import ImageChannel
 
 
 def test_shape():

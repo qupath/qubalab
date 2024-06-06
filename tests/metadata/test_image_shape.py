@@ -1,5 +1,5 @@
 import pytest
-from qubalab.images.image_shape import ImageShape
+from qubalab.images.metadata.image_shape import ImageShape
 
 
 def test_as_tuple():

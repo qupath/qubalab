@@ -1,5 +1,5 @@
 import pytest
-from qubalab.images.region_2d import Region2D
+from qubalab.images.metadata.region_2d import Region2D
 
 
 def test_default_values():
