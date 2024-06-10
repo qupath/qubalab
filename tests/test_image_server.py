@@ -119,13 +119,24 @@ def test_tile_of_full_resolution_RGB_image():
     np.testing.assert_array_equal(image, expected_image)
 
 
-def test_RGB_image_size_with_new_downsample():
+def test_dowsampled_RGB_image_size():
     downsample = 1.5
     expected_width = round(sample_RGB_metadata.width / downsample)
     expected_height = round(sample_RGB_metadata.height / downsample)
     sample_RGB_server = SampleRGBServer()
 
-    image = sample_RGB_server.read_region(1.5, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
+    image = sample_RGB_server.read_region(downsample, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
+
+    assert expected_width == image.shape[1] and expected_height == image.shape[0]
+
+
+def test_scaled_RGB_image_size():
+    downsample = 0.5
+    expected_width = round(sample_RGB_metadata.width / downsample)
+    expected_height = round(sample_RGB_metadata.height / downsample)
+    sample_RGB_server = SampleRGBServer()
+
+    image = sample_RGB_server.read_region(downsample, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
 
     assert expected_width == image.shape[1] and expected_height == image.shape[0]
 
@@ -179,12 +190,23 @@ def test_tile_of_full_resolution_float32_image():
     np.testing.assert_array_equal(image, expected_image)
 
 
-def test_float32_image_size_with_new_downsample():
+def test_dowsampled_float32_image_size():
     downsample = 1.5
     expected_width = round(sample_float32_metadata.width / downsample)
     expected_height = round(sample_float32_metadata.height / downsample)
     sample_float32_server = SampleFloat32Server()
 
-    image = sample_float32_server.read_region(1.5, Region2D(x=0, y=0, width=sample_float32_metadata.width, height=sample_float32_metadata.height))
+    image = sample_float32_server.read_region(downsample, Region2D(x=0, y=0, width=sample_float32_metadata.width, height=sample_float32_metadata.height))
+
+    assert expected_width == image.shape[1] and expected_height == image.shape[0]
+
+
+def test_scaled_float32_image_size():
+    downsample = 0.5
+    expected_width = round(sample_float32_metadata.width / downsample)
+    expected_height = round(sample_float32_metadata.height / downsample)
+    sample_float32_server = SampleFloat32Server()
+
+    image = sample_float32_server.read_region(downsample, Region2D(x=0, y=0, width=sample_float32_metadata.width, height=sample_float32_metadata.height))
 
     assert expected_width == image.shape[1] and expected_height == image.shape[0]
