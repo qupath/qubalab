@@ -1,16 +1,12 @@
 import numpy as np
 from pathlib import Path
-from typing import Tuple
 from dataclasses import astuple
 import warnings
 try:
     import openslide
 except ImportError as e:
     warnings.warn(f'Unable to import OpenSlide, will try TiffSlide instead')
-    try:
-        import tiffslide as openslide
-    except ImportError as e:
-        warnings.warn(f'Unable to import TiffSlide')
+    import tiffslide as openslide
 from .image_server import ImageServer
 from .metadata.image_server_metadata import ImageServerMetadata
 from .metadata.pixel_calibration import PixelCalibration, PixelLength

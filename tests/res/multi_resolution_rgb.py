@@ -29,7 +29,7 @@ def get_pixel_size_x_y_in_micrometers():
 
 
 def get_downsamples():
-    return (1, 2, 4, 8, 16, 32, 64)
+    return tuple([get_shapes()[0].x / shape.x for shape in get_shapes()])
 
 
 def get_pixel_value(x, y, c):
@@ -60,7 +60,7 @@ def _get_pixels():
 def _write_image(pixels):
     with tifffile.TiffWriter(get_path()) as tif:
         number_of_subresolutions = len(get_downsamples())-1
-        number_of_pixels_per_cm = 1e4 / get_pixel_size_x_y_in_micrometers() 
+        number_of_pixels_per_cm = 1e4 / get_pixel_size_x_y_in_micrometers()
 
         tif.write(
             pixels,
@@ -73,7 +73,7 @@ def _write_image(pixels):
         for downsample in get_downsamples():
             if downsample > 1:
                 tif.write(
-                    pixels[..., ::downsample, ::downsample],
+                    pixels[..., ::int(downsample), ::int(downsample)],
                     subfiletype=1,      # indicate that the image is part of a multi-page image
                     resolution=(number_of_pixels_per_cm / downsample, number_of_pixels_per_cm / downsample),
                     resolutionunit=3
