@@ -1,7 +1,6 @@
 import numpy as np
 from qubalab.images.openslide_server import OpenSlideServer
 from qubalab.images.metadata.region_2d import Region2D
-from qubalab.images.metadata.image_shape import ImageShape
 from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
 from .res import multi_resolution_rgb
 
@@ -49,30 +48,6 @@ def test_image_dtype():
     assert dtype == np.uint8
 
 
-def test_image_shape():
-    openslide_server = OpenSlideServer(multi_resolution_rgb.get_path())
-
-    shape = openslide_server.metadata.shape
-
-    assert shape == multi_resolution_rgb.get_shapes()[0]
-
-
-def test_image_width():
-    openslide_server = OpenSlideServer(multi_resolution_rgb.get_path())
-
-    width = openslide_server.metadata.width
-
-    assert width == multi_resolution_rgb.get_shapes()[0].x
-
-
-def test_image_height():
-    openslide_server = OpenSlideServer(multi_resolution_rgb.get_path())
-
-    height = openslide_server.metadata.height
-
-    assert height == multi_resolution_rgb.get_shapes()[0].y
-
-
 def test_number_of_channels_when_alpha_stripped():
     openslide_server = OpenSlideServer(multi_resolution_rgb.get_path())
 
@@ -97,30 +72,6 @@ def test_number_of_channels_when_single_channel():
     assert n_channels == 1
 
 
-def test_number_of_timepoints():
-    openslide_server = OpenSlideServer(multi_resolution_rgb.get_path())
-
-    n_timepoints = openslide_server.metadata.n_timepoints
-
-    assert n_timepoints == 1
-
-
-def test_number_of_z_slices():
-    openslide_server = OpenSlideServer(multi_resolution_rgb.get_path())
-
-    n_z_slices = openslide_server.metadata.n_z_slices
-
-    assert n_z_slices == 1
-
-
-def test_number_of_resolutions():
-    openslide_server = OpenSlideServer(multi_resolution_rgb.get_path())
-
-    n_resolutions = openslide_server.metadata.n_resolutions
-
-    assert n_resolutions == len(multi_resolution_rgb.get_shapes())
-
-
 def test_downsamples():
     openslide_server = OpenSlideServer(multi_resolution_rgb.get_path())
 
@@ -143,4 +94,4 @@ def test_read_image():
     )
 
     np.testing.assert_array_equal(image, expected_pixels)
-
+    

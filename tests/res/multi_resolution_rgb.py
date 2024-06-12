@@ -58,12 +58,20 @@ def _get_pixels():
 
 
 def _write_image(pixels):
+    metadata = {
+        'PhysicalSizeX': get_pixel_size_x_y_in_micrometers(),
+        'PhysicalSizeXUnit': 'µm',
+        'PhysicalSizeY': get_pixel_size_x_y_in_micrometers(),
+        'PhysicalSizeYUnit': 'µm'
+    }
+
     with tifffile.TiffWriter(get_path()) as tif:
         number_of_subresolutions = len(get_downsamples())-1
         number_of_pixels_per_cm = 1e4 / get_pixel_size_x_y_in_micrometers()
 
         tif.write(
             pixels,
+            metadata=metadata,
             subifds=number_of_subresolutions,
             resolution=(number_of_pixels_per_cm, number_of_pixels_per_cm),
             resolutionunit=3    # indicate that the resolution above is in cm^-1
@@ -74,6 +82,7 @@ def _write_image(pixels):
             if downsample > 1:
                 tif.write(
                     pixels[..., ::int(downsample), ::int(downsample)],
+                    metadata=metadata,
                     subfiletype=1,      # indicate that the image is part of a multi-page image
                     resolution=(number_of_pixels_per_cm / downsample, number_of_pixels_per_cm / downsample),
                     resolutionunit=3
