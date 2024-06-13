@@ -18,7 +18,7 @@ def test_image_shapes():
 
     shapes = aicsimageio_server.metadata.shapes
 
-    assert shapes == multi_resolution_rgb.get_shapes()
+    assert shapes == (multi_resolution_rgb.get_shapes()[0], )      # The AICSImage library does not properly support pyramids
 
 
 def test_image_pixel_calibration():
@@ -53,7 +53,7 @@ def test_downsamples():
 
     downsamples = aicsimageio_server.metadata.downsamples
 
-    assert downsamples == multi_resolution_rgb.get_downsamples()
+    assert downsamples == (multi_resolution_rgb.get_downsamples()[0], )      # The AICSImage library does not properly support pyramids
 
 
 def test_read_image():
@@ -70,3 +70,6 @@ def test_read_image():
     )
 
     np.testing.assert_array_equal(image, expected_pixels)
+    
+
+#TODO: add test for 5D image, investigate S dimension

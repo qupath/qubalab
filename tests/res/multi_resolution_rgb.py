@@ -20,7 +20,7 @@ def get_shapes():
         ImageShape(64, 32, c=3),
         ImageShape(32, 16, c=3),
         ImageShape(16, 8, c=3),
-        ImageShape(8, 4, c=3)
+        ImageShape(8, 4, c=3),
     )
 
 
@@ -41,7 +41,7 @@ def _get_pixels():
     height = get_shapes()[0].y
 
     pixels = []
-    for c in range(3):
+    for c in range(get_shapes()[0].c):
         channel = []
         for y in range(height):
             row = []

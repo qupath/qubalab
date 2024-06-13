@@ -19,6 +19,8 @@ class AICSImageIoServer(ImageServer):
     For example, it may provide Bio-Formats or CZI support... or it may not.
     Note that the AICSImage library does not currently handle unit attachment, so the pixel unit
     given by this server will always be 'pixels'.
+    Note that the AICSImage library does not properly support pyramids, so you might only get the full
+    resolution image when opening a pyramidal image.
     """
 
     def __init__(self, path: str, scene: int = 0, detect_resolutions=True, aics_kwargs: dict[str, any] = {}, **kwargs):
@@ -26,9 +28,7 @@ class AICSImageIoServer(ImageServer):
         Create the server.
 
         :param path: the local path to the image to open
-        :param scene: AICSImageIO divides images into scene. For example, the full resolution image is a scene,
-                      and a lower resolution image is another scene. This parameter specifies which scene to consider
-                      (if detect_resolutions is True, higher scenes will also be considered)
+        :param scene: AICSImageIO divides images into scene. This parameter specifies which scene to consider
         :param detect_resolutions: whether to look at all resolutions of the image (instead of just the full resolution)
         :param aics_kwargs: any specific keyword arguments to pass down to the fsspec created filesystem handled by the AICSImageIO reader
         :param resize_method: the resampling method to use when resizing the image for downsampling. Bicubic by default
@@ -53,7 +53,7 @@ class AICSImageIoServer(ImageServer):
         x, y, width, height, z, t = astuple(region)
         
         self._reader.set_scene(self._reader.scenes[self._scene + level])
-        return self._reader.get_image_dask_data()[t, :, z, y:y + height, x:x + width, ...].compute()
+        return self._reader.get_image_dask_data("TZYXC")[t, z, y:y + height, x:x + width, ...].compute()
 
     def close(self):
         self._reader.close()

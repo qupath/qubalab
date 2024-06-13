@@ -95,3 +95,5 @@ def test_read_image():
 
     np.testing.assert_array_equal(image, expected_pixels)
     
+
+#TODO: add test for lower resolution image
