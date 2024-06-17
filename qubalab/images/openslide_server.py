@@ -16,9 +16,11 @@ from .metadata.region_2d import Region2D
 
 class OpenSlideServer(ImageServer):
     """
-    An image server that relies on OpenSlide (https://openslide.org/) to read images.
+    An image server that relies on OpenSlide (https://openslide.org/) to read RGB images.
 
-    It can only be used to read RGB images.
+    OpenSlide provides some properties to define a rectangle bounding the non-empty region of the slide
+    (see https://openslide.org/api/python/#standard-properties). If such properties are found, only this
+    rectangle will be read (but note that this behaviour was not properly tested).
     """
 
     def __init__(self, path: str, strip_alpha=True, single_channel=False, limit_bounds=True, **kwargs):

@@ -46,14 +46,16 @@ class AICSImageIoServer(ImageServer):
             self._get_shapes(self._reader, self._scene) if self._detect_resolutions else (self._get_scene_shape(self._reader, self._reader.scenes[self._scene]),),
             self._get_pixel_calibration(self._reader),
             self._is_rgb(self._reader),
-            self._reader.dtype
+            np.dtype(self._reader.dtype)
         )
 
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
         x, y, width, height, z, t = astuple(region)
         
         self._reader.set_scene(self._reader.scenes[self._scene + level])
-        return self._reader.get_image_dask_data("TZYXC")[t, z, y:y + height, x:x + width, ...].compute()
+        axes = "TZYX" + ("S" if "S" in self._reader.dims.order else "C")
+
+        return self._reader.get_image_dask_data(axes)[t, z, y:y + height, x:x + width, ...].compute()
 
     def close(self):
         self._reader.close()
@@ -73,14 +75,13 @@ class AICSImageIoServer(ImageServer):
     @staticmethod
     def _get_scene_shape(reader: AICSImage, scene: int) -> ImageShape:
         reader.set_scene(scene)
-        dims = reader.dims
 
         return ImageShape(
-            x=dims.X if 'X' in dims.order else 1,
-            y=dims.Y if 'Y' in dims.order else 1,
-            z=dims.Z if 'Z' in dims.order else 1,
-            c=dims.S if 'S' in dims.order else (dims.C if 'C' in dims.order else 1),
-            t=dims.T if 'T' in dims.order else 1,
+            x=reader.dims.X if 'X' in reader.dims.order else 1,
+            y=reader.dims.Y if 'Y' in reader.dims.order else 1,
+            z=reader.dims.Z if 'Z' in reader.dims.order else 1,
+            c=reader.dims.S if 'S' in reader.dims.order else (reader.dims.C if 'C' in reader.dims.order else 1),
+            t=reader.dims.T if 'T' in reader.dims.order else 1,
         )
 
     @staticmethod

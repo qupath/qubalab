@@ -9,9 +9,9 @@ sample_RGB_metadata = ImageServerMetadata(
     "/path/to/img.tiff",
     "Image name",
     (
-        ImageShape(64, 50),
-        ImageShape(32, 25),
-        ImageShape(16, 12)
+        ImageShape(64, 50, c=3),
+        ImageShape(32, 25, c=3),
+        ImageShape(16, 12, c=3)
     ),
     PixelCalibration(
         PixelLength.create_microns(2.5),
@@ -21,6 +21,7 @@ sample_RGB_metadata = ImageServerMetadata(
     np.uint8
 )
 sample_RGB_pixels = [[[[x / shape.x * 255, y / shape.y * 255, 0] for x in range(shape.x)] for y in range(shape.y)] for shape in sample_RGB_metadata.shapes]
+
 class SampleRGBServer(ImageServer):
     def _build_metadata(self) -> ImageServerMetadata:
         return sample_RGB_metadata
@@ -29,7 +30,7 @@ class SampleRGBServer(ImageServer):
         image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)
         return image[region.y:region.y+region.height, region.x:region.x+region.width, :]
     
-    def close():
+    def close(self):
         pass
 
 
@@ -37,9 +38,9 @@ sample_float32_metadata = ImageServerMetadata(
     "/path/to/img.tiff",
     "Image name",
     (
-        ImageShape(64, 50),
-        ImageShape(32, 25),
-        ImageShape(16, 12)
+        ImageShape(64, 50, c=3),
+        ImageShape(32, 25, c=3),
+        ImageShape(16, 12, c=3)
     ),
     PixelCalibration(
         PixelLength.create_microns(2.5),
@@ -49,6 +50,7 @@ sample_float32_metadata = ImageServerMetadata(
     np.float32
 )
 sample_float32_pixels = [[[[x / shape.x, y / shape.y, 0] for x in range(shape.x)] for y in range(shape.y)] for shape in sample_RGB_metadata.shapes]
+
 class SampleFloat32Server(ImageServer):
     def _build_metadata(self) -> ImageServerMetadata:
         return sample_float32_metadata

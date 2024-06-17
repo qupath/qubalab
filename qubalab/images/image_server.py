@@ -66,8 +66,6 @@ class ImageServer(ABC):
 
         This means that, except when the downsample is 1.0, the width and height of the returned image will usually
         be different from the width and height passed as parameters.
-        This may result in off-by-one issues due to user-expectation and rounding; these can be avoided by using
-        :func:`read_block` if the downsample corresponds exactly to an existing level.
 
         TODO: Consider if this should actually return a dask array or xarray
         TODO: Consider if this should return using the dimension ordering of AICSImageIO
