@@ -1,28 +1,26 @@
 from argparse import ArgumentError
-from typing import Union, Iterable
+from typing import Union
 from operator import itemgetter
-import math
 import numpy as np
 import traceback as tb
-
-from zarr.storage import BaseStore, init_group, init_array, attrs_key
+from zarr.storage import Store, init_group, init_array, attrs_key
 from zarr.util import json_dumps
-
-from .servers import ImageServer, Region2D, _get_level
-
 from .metadata.pixel_calibration import PixelCalibration
-from .metadata.image_channel import ImageChannel
+from .metadata.region_2d import Region2D
+from .image_server import ImageServer
 
 
 OME_NGFF_SPECIFICATION_VERSION = "0.4"
 
 
-class PyramidStore(BaseStore):
+class PyramidStore(Store):
     """
     A wrapper to open an ImageServer with https://github.com/zarr-developers/zarr-python.
 
-    This class is a Zarr store, which means it can be used by specifying it in the
-    zarr.open_array function for example.
+    This class is a Zarr store that represents a zarr group, this one containing
+    one or more zarr arrays (depending on the number of resolutions of the image).
+    You can use it with zarr.Group(store=PyramidStore(...)) (see the sample notebooks
+    or the unit tests for examples).
 
     This store is read-only, so functions like zarr.create won't work.
 
@@ -84,17 +82,15 @@ class PyramidStore(BaseStore):
         
         self._dims = ''.join(dimensions_to_keep('tczyx'))
 
-        self._store = PyramidStore._create_group(
-            self._server.dtype,
+        self._root = PyramidStore._create_root(
             self._server.metadata.name if name is None else name,
             dimensions_to_keep,
-            self._server.metadata.channels,
             self._downsamples,
             self._server.metadata.pixel_calibration
         )
 
         PyramidStore._create_arrays(
-            self._store,
+            self._root,
             self._server,
             dimensions_to_keep,
             self._downsamples,
@@ -103,36 +99,28 @@ class PyramidStore(BaseStore):
 
     def __getitem__(self, key: str):
         # Check if key is in metadata
-        if key in self._store:
-            return self._store[key]
+        if key in self._root:
+            return self._root[key]
+        
         try:
             # We should have a chunk path, with a chunk level
             ct, cz, cy, cx, level = self._parse_chunk_path(key)
 
             # Convert the chunk level a downsample value & also to a server level
             downsample = self._downsamples[level]
-            full_width = int(self._server.width / downsample)
-            full_height = int(self._server.height / downsample)
-            server_level = _get_level(self._server.downsamples, downsample)
-            tile_width = min(full_width, self._tile_size[0])
-            tile_height = min(full_height, self._tile_size[1])
+            level_width = int(self._server.metadata.width / downsample)
+            level_height = int(self._server.metadata.height / downsample)
+            tile_width = min(level_width, self._tile_size[0])
+            tile_height = min(level_height, self._tile_size[1])
 
-            if math.isclose(self._server.downsamples[server_level], downsample, abs_tol=1e-3):
-                # If our downsample value is close to what the server can provide directly, use read_block & level
-                x = int(cx * tile_width)
-                y = int(cy * tile_height)
-                w = int(min(full_width - x, tile_width))
-                h = int(min(full_height - y, tile_height))
-                block = (x, y, w, h, cz, ct)
-                tile = self._server.read_block(level=server_level, block=block)
-            else:
-                # If our downsample value is anything else, use read_region to auto-apply whatever resizing we need (shouldn't be used!)
-                x = int(round(cx * tile_width * downsample))
-                y = int(round(cy * tile_height * downsample))
-                w = int(min(self._server.width - x, round(tile_width * downsample)))
-                h = int(min(self._server.height - y, round(tile_height * downsample)))
-                region = Region2D(downsample=downsample, x=x, y=y, width=w, height=h, z=cz, t=ct)
-                tile = self._server.read_region(region=region)
+            x = int(round(cx * tile_width * downsample))
+            y = int(round(cy * tile_height * downsample))
+            w = int(min(self._server.metadata.width - x, round(tile_width * downsample)))
+            h = int(min(self._server.metadata.height - y, round(tile_height * downsample)))
+            tile = self._server.read_region(
+                downsample,
+                Region2D(x, y, w, h, cz, ct)
+            )
 
             # Chunks should be the same size (according to zarr spec), so pad if needed
             pad_y = tile_height - tile.shape[0]
@@ -163,7 +151,7 @@ class PyramidStore(BaseStore):
             raise KeyError(key)
 
     def __contains__(self, key: str):
-        return key in self._store
+        return key in self._root
 
     def __eq__(self, other):
         return (
@@ -184,34 +172,18 @@ class PyramidStore(BaseStore):
         pass
 
     def __setitem__(self, key, val):
-        raise RuntimeError("__setitem__ not implemented")
+        raise RuntimeError("This store is read-only")
 
     def __delitem__(self, key):
-        raise RuntimeError("__setitem__ not implemented")
+        raise RuntimeError("This store is read-only")
 
     def keys(self):
-        return self._store.keys()
-
-    def _parse_chunk_path(self, path: str) -> tuple[int, int, int, int, int]:
-        level, chunk = path.split('/')
-        chunks = tuple(map(int, chunk.split('.')))
-        return tuple([self._extract_chunk_path(chunks, 't'),
-                      self._extract_chunk_path(chunks, 'z'),
-                      chunks[-2],
-                      chunks[-1],
-                      int(level)])
-
-    def _extract_chunk_path(self, lengths: tuple[int, ...], target: str):
-        if target in self._dims:
-            return lengths[self._dims.index(target)]
-        return 0
+        return self._root.keys()
 
     @staticmethod
-    def _create_group(
-        dtype: np.dtype,
+    def _create_root(
         name: str,
-        dimensions_to_keep: itemgetter[tuple[int, ...]],
-        channels: tuple[ImageChannel, ...],
+        dimensions_to_keep: itemgetter,
         downsamples: tuple[float, ...],
         pixel_calibration: PixelCalibration
     ) -> dict[str, bytes]:
@@ -233,11 +205,6 @@ class PyramidStore(BaseStore):
 
         group = dict()
         init_group(group)
-        
-        if issubclass(dtype, np.integer):
-            max_value = np.iinfo(dtype).max
-        else:
-            max_value = np.finfo(dtype).max
 
         group[attrs_key] = json_dumps(dict(
             multiscales=[
@@ -267,32 +234,7 @@ class PyramidStore(BaseStore):
                         dict(name='x', type='space', unit=pixel_calibration.length_x.unit),
                     ])
                 )
-            ],
-            omero= dict(
-                name=name,
-                version=OME_NGFF_SPECIFICATION_VERSION,
-                channels=[
-                    dict(
-                        active=True,
-                        coefficient=1,
-                        color="{0:X}{1:X}{2:X}".format(int(channel.color[0] * 255), int(channel.color[1] * 255), int(channel.color[2] * 255)),
-                        family="linear",
-                        inverted=False,
-                        label=channel.name,
-                        window=dict(
-                            start=0,
-                            end=max_value,
-                            min=0,
-                            max=max_value
-                        )
-                    ) for channel in channels
-                ],
-                rdefs=dict(
-                    defaultT=0,
-                    defaultZ=0,
-                    model="color"
-                )
-            )
+            ]
         ))
         return group
 
@@ -300,7 +242,7 @@ class PyramidStore(BaseStore):
     def _create_arrays(
         group: dict[str, bytes],
         server: ImageServer,
-        dimensions_to_keep: itemgetter[tuple[int, ...]],
+        dimensions_to_keep: itemgetter,
         downsamples: tuple[float, ...],
         tile_size: tuple[int, int]
     ):
@@ -336,6 +278,20 @@ class PyramidStore(BaseStore):
                     min(int(server.metadata.height / downsample), tile_size[1]),
                     min(int(server.metadata.width / downsample), tile_size[0])
                 )),
-                dtype=server.dtype,
+                dtype=server.metadata.dtype,
                 compressor=None
             )
+
+    def _parse_chunk_path(self, path: str) -> tuple[int, int, int, int, int]:
+        level, chunk = path.split('/')
+        chunks = tuple(map(int, chunk.split('.')))
+        return tuple([self._extract_chunk_path(chunks, 't'),
+                      self._extract_chunk_path(chunks, 'z'),
+                      chunks[-2],
+                      chunks[-1],
+                      int(level)])
+
+    def _extract_chunk_path(self, lengths: tuple[int, ...], target: str):
+        if target in self._dims:
+            return lengths[self._dims.index(target)]
+        return 0

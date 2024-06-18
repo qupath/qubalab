@@ -21,18 +21,7 @@ class ImageServer(ABC):
         """
         super().__init__()
         self._metadata = None
-        self._downsamples = None
-        self._channels = None
         self._resize_method = resize_method
-
-    @property
-    def resize_method(self) -> Image.Resampling:
-        """
-        Resampling method to use when resizing the image for downsampling.
-
-        Subclasses can override this, e.g. to enforce nearest neighbor resampling for label images.
-        """
-        return self._resize_method
 
     @property
     def metadata(self) -> ImageServerMetadata:
@@ -98,15 +87,15 @@ class ImageServer(ABC):
             h = region.height if region.height >= 0 else self.metadata.height - region.y
             region = Region2D(x=region.x, y=region.y, width=w, height=h, z=region.z, t=region.t)
 
-        level = self._get_level(downsample)
-        level_downsample = self.metadata.downsamples[self._get_level(downsample)]
+        level = ImageServer._get_level(self.metadata.downsamples, downsample)
+        level_downsample = self.metadata.downsamples[level]
         image = self._read_block(level, region.downsample_region(downsample=level_downsample))
         
         if downsample == level_downsample:
             return image
         else:
             target_size = (round(region.width / downsample), round(region.height / downsample))
-            return self._resize(image, target_size, self.resize_method)
+            return self._resize(image, target_size, self._resize_method)
 
     def rebuild_metadata(self):
         """
@@ -157,8 +146,8 @@ class ImageServer(ABC):
         """
         pass
     
-
-    def _get_level(self, downsample: float, abs_tol=1e-3) -> int:
+    @staticmethod
+    def _get_level(all_downsamples: tuple[float], downsample: float, abs_tol=1e-3) -> int:
         """
         Get the level (index) from the image downsamples that is best for fulfilling an image region request.
 
@@ -171,19 +160,20 @@ class ImageServer(ABC):
                         (e.g. requesting 4.0 would match a level 4 +/- abs_tol)
         :return: the level that is best for fulfilling an image region request at the specified downsample
         """
-        if len(self.metadata.downsamples) == 1 or downsample <= self.metadata.downsamples[0]:
+        if len(all_downsamples) == 1 or downsample <= all_downsamples[0]:
             return 0
-        elif downsample >= self.metadata.downsamples[-1]:
-            return len(self.metadata.downsamples) - 1
+        elif downsample >= all_downsamples[-1]:
+            return len(all_downsamples) - 1
         else:
             # Allow a little bit of a tolerance because downsamples are often calculated
             # by rounding the ratio of image dimensions... and can end up a little bit off
-            for level, d in reversed(list(enumerate(self.metadata.downsamples))):
+            for level, d in reversed(list(enumerate(all_downsamples))):
                 if downsample >= d - abs_tol:
                     return level
             return 0
         
-    def _resize(self, image: Union[np.ndarray, Image.Image], target_size: tuple[int, int], resample: int = Image.Resampling.BICUBIC) -> Union[np.ndarray, Image.Image]:
+    @staticmethod
+    def _resize(image: Union[np.ndarray, Image.Image], target_size: tuple[int, int], resample: int = Image.Resampling.BICUBIC) -> Union[np.ndarray, Image.Image]:
         """
         Resize an image to a target size.
 
@@ -195,7 +185,7 @@ class ImageServer(ABC):
         :param resample: resampling mode to use, by default bicubic
         :return: the resized image, either a 3-dimensional numpy array with dimensions (y, x, channel) or a PIL image
         """
-        if self._get_size(image) == target_size:
+        if ImageServer._get_size(image) == target_size:
             return image
 
         # If we have a PIL image, just resize normally
@@ -210,18 +200,19 @@ class ImageServer(ABC):
                     pilImage = Image.fromarray(image.astype(np.int32), mode='I')
                 else:
                     pilImage = Image.fromarray(image.astype(np.float32), mode='F')
-                pilImage = self._resize(pilImage, target_size=target_size, resample=resample)
+                pilImage = ImageServer._resize(pilImage, target_size=target_size, resample=resample)
                 return np.asarray(pilImage).astype(image.dtype)
             else:
                 image_channels = [
-                    self._resize(image[:, :, c, ...], target_size=target_size, resample=resample) for c in range(image.shape[2])
+                    ImageServer._resize(image[:, :, c, ...], target_size=target_size, resample=resample) for c in range(image.shape[2])
                 ]
                 if len(image_channels) == 1:
                     return np.atleast_3d(image_channels[0])
                 else:
                     return np.stack(image_channels, axis=-1)
         
-    def _get_size(self, image: Union[np.ndarray, Image.Image]):
+    @staticmethod
+    def _get_size(image: Union[np.ndarray, Image.Image]):
         """
         Get the size of an image as a two-element tuple (width, height).
         """
