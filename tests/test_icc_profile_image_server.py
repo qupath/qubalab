@@ -1,4 +1,5 @@
 import numpy as np
+import dask.array as da
 from PIL import ImageCms
 from qubalab.images.image_server import ImageServerMetadata, ImageServer
 from qubalab.images.icc_profile_server import IccProfileServer
@@ -26,14 +27,17 @@ sample_RGB_pixels = np.array(
 )
 
 class SampleRGBServer(ImageServer):
+    def level_to_dask(self, level: int = 0) -> da.Array:
+        return da.from_array(sample_RGB_pixels)
+    
+    def close(self):
+        pass
+
     def _build_metadata(self) -> ImageServerMetadata:
         return sample_RGB_metadata
 
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
         return sample_RGB_pixels[region.y:region.y+region.height, region.x:region.x+region.width, :]
-    
-    def close(self):
-        pass
 
 
 def test_transform_when_icc_profile_not_provided():
@@ -45,11 +49,20 @@ def test_transform_when_icc_profile_not_provided():
     assert transform == None
 
 
-def test_pixels_when_icc_profile_not_provided():
+def test_region_of_pixels_when_icc_profile_not_provided():
     sample_rgb_server = SampleRGBServer()
     icc_profile_server = IccProfileServer(sample_rgb_server)
 
     image = icc_profile_server.read_region(1, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
+
+    np.testing.assert_array_equal(image, sample_RGB_pixels)
+
+
+def test_dask_array_of_pixels_when_icc_profile_not_provided():
+    sample_rgb_server = SampleRGBServer()
+    icc_profile_server = IccProfileServer(sample_rgb_server)
+
+    image = icc_profile_server.level_to_dask(0).compute()
 
     np.testing.assert_array_equal(image, sample_RGB_pixels)
 

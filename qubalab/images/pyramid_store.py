@@ -22,11 +22,16 @@ class PyramidStore(Store):
     You can use it with zarr.Group(store=PyramidStore(...)) (see the sample notebooks
     or the unit tests for examples).
 
+    Pixels of zarr arrays of this store can be accessed with the following order:
+    (t, c, z, y, x). There may be less dimensions for simple images.
+
     This store is read-only, so functions like zarr.create won't work.
 
     The Zarr arrays will be divided into chunks whose width and height can be specified.
     The size of chunks along the channel axis will be the total number of channels,
     while the size of chunks along the z-axis and the time-axis will be 1.
+    The width and heights of chunks cannot be greater than the width and height
+    of the image.
 
     The returned zarr will conform to version 0.4 of the OME-NGFF specifications
     (see https://ngff.openmicroscopy.org/0.4/). These specifications define
@@ -39,7 +44,7 @@ class PyramidStore(Store):
     def __init__(
         self,
         server: ImageServer,
-        tile_size: Union[int, tuple[int, int]] = None,
+        chunk_size: Union[int, tuple[int, int]] = None,
         name: str = None,
         downsamples: tuple[float, ...] = None,
         squeeze=True
@@ -48,9 +53,9 @@ class PyramidStore(Store):
         Create a Zarr-compatible mapping for a multiresolution image reading pixels from an ImageServer.
 
         :param server: the image server to open
-        :param tile_size: the size of the chunks that divide the image. A tuple to set the width/height
-                          of the chunks or an integer to set the same value for width/height.
-                          By default, chunks will have a size of (y=1024, x=1024)
+        :param chunk_size: the size of the chunks that divide the image. A tuple to set the width/height
+                           of the chunks or an integer to set the same value for width/height.
+                           By default, chunks will have a size of (y=1024, x=1024)
         :param name: the name of the image. By default, this is the name contained in the image metadata
         :param downsamples: the downsamples of the image. By default, the downsamples of the image server
                             will be used
@@ -63,12 +68,12 @@ class PyramidStore(Store):
         super().__init__()
         self._server = server
 
-        if tile_size is None:
-            self._tile_size = (1024, 1024)
-        elif isinstance(tile_size, int):
-            self._tile_size = (tile_size, tile_size)
+        if chunk_size is None:
+            self._chunk_size = (1024, 1024)
+        elif isinstance(chunk_size, int):
+            self._chunk_size = (chunk_size, chunk_size)
         else:
-            self._tile_size = tile_size
+            self._chunk_size = chunk_size
 
         if downsamples is None:
             self._downsamples = server.metadata.downsamples
@@ -94,7 +99,7 @@ class PyramidStore(Store):
             self._server,
             dimensions_to_keep,
             self._downsamples,
-            self._tile_size
+            self._chunk_size
         )
 
     def __getitem__(self, key: str):
@@ -110,8 +115,8 @@ class PyramidStore(Store):
             downsample = self._downsamples[level]
             level_width = int(self._server.metadata.width / downsample)
             level_height = int(self._server.metadata.height / downsample)
-            tile_width = min(level_width, self._tile_size[0])
-            tile_height = min(level_height, self._tile_size[1])
+            tile_width = min(level_width, self._chunk_size[0])
+            tile_height = min(level_height, self._chunk_size[1])
 
             x = int(round(cx * tile_width * downsample))
             y = int(round(cy * tile_height * downsample))
@@ -244,7 +249,7 @@ class PyramidStore(Store):
         server: ImageServer,
         dimensions_to_keep: itemgetter,
         downsamples: tuple[float, ...],
-        tile_size: tuple[int, int]
+        chunk_size: tuple[int, int]
     ):
         """
         Create the zarr arrays that represent the levels of the image, and add them
@@ -257,7 +262,7 @@ class PyramidStore(Store):
                                    (t,y,x) dimensions must be kept, dimensions_to_keep([1, 2, 3, 4, 5])
                                    should return (1, 4, 5)
         :param downsamples: the downsamples of the image
-        :param tile_size: the size (width, height) of the chunks that divide the image
+        :param chunk_size: the size (width, height) of the chunks that divide the image
         """
 
         for downsample_index, downsample in enumerate(downsamples):
@@ -275,8 +280,8 @@ class PyramidStore(Store):
                     1,
                     server.metadata.n_channels,
                     1,
-                    min(int(server.metadata.height / downsample), tile_size[1]),
-                    min(int(server.metadata.width / downsample), tile_size[0])
+                    min(int(server.metadata.height / downsample), chunk_size[1]),
+                    min(int(server.metadata.width / downsample), chunk_size[0])
                 )),
                 dtype=server.metadata.dtype,
                 compressor=None

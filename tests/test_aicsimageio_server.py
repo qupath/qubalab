@@ -56,9 +56,10 @@ def test_uint8_3channels_image_downsamples():
     assert downsamples == (multi_resolution_uint8_3channels.get_downsamples()[0], )      # The AICSImage library does not properly support pyramids
 
 
-def test_read_entire_uint8_3channels_image():
-    full_resolution = multi_resolution_uint8_3channels.get_shapes()[0]
-    downsample = multi_resolution_uint8_3channels.get_downsamples()[0]
+def test_read_uint8_3channels_image():
+    level = 0
+    full_resolution = multi_resolution_uint8_3channels.get_shapes()[level]
+    downsample = multi_resolution_uint8_3channels.get_downsamples()[level]
     aicsimageio_server = AICSImageIoServer(multi_resolution_uint8_3channels.get_path())
     expected_pixels = np.array([[[
         multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, 0),
@@ -70,6 +71,24 @@ def test_read_entire_uint8_3channels_image():
         downsample,
         Region2D(width=aicsimageio_server.metadata.width, height=aicsimageio_server.metadata.height)
     )
+
+    np.testing.assert_array_equal(image, expected_pixels)
+
+
+def test_read_uint8_3channels_image_with_dask():
+    level = 0
+    full_resolution = multi_resolution_uint8_3channels.get_shapes()[level]
+    downsample = multi_resolution_uint8_3channels.get_downsamples()[level]
+    aicsimageio_server = AICSImageIoServer(multi_resolution_uint8_3channels.get_path())
+    expected_pixels = np.array(
+        [[[multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, c)
+            for x in range(full_resolution.x)]
+            for y in range(full_resolution.y)]
+            for c in range(full_resolution.c)],
+        multi_resolution_uint8_3channels.get_dtype()
+    )
+
+    image = aicsimageio_server.level_to_dask(level).compute()
 
     np.testing.assert_array_equal(image, expected_pixels)
 
@@ -125,7 +144,7 @@ def test_float_5d_image_downsamples():
     assert downsamples == single_resolution_float_5d.get_downsamples()
 
 
-def test_read_entire_float_5d_image():
+def test_read_float_5d_image():
     full_resolution = single_resolution_float_5d.get_shapes()[0]
     z = int(full_resolution.z / 2)
     t = int(full_resolution.t / 2)
@@ -142,6 +161,24 @@ def test_read_entire_float_5d_image():
         1,
         Region2D(width=aicsimageio_server.metadata.width, height=aicsimageio_server.metadata.height, z=z, t=t)
     )
+
+    np.testing.assert_array_equal(image, expected_pixels)
+
+
+def test_read_float_5d_image_with_dask():
+    full_resolution = single_resolution_float_5d.get_shapes()[0]
+    aicsimageio_server = AICSImageIoServer(single_resolution_float_5d.get_path())
+    expected_pixels = np.array(
+        [[[[[single_resolution_float_5d.get_pixel_value(x, y, c, z, t)
+            for x in range(full_resolution.x)]
+            for y in range(full_resolution.y)]
+            for z in range(full_resolution.z)]
+            for c in range(full_resolution.c)]
+            for t in range(full_resolution.t)],
+        single_resolution_float_5d.get_dtype()
+    )
+
+    image = aicsimageio_server.level_to_dask(0).compute()
 
     np.testing.assert_array_equal(image, expected_pixels)
 
@@ -197,7 +234,7 @@ def test_rgb_image_downsamples():
     assert downsamples == single_resolution_rgb_image.get_downsamples()
 
 
-def test_read_entire_rgb_image():
+def test_read_rgb_image():
     full_resolution = single_resolution_rgb_image.get_shapes()[0]
     aicsimageio_server = AICSImageIoServer(single_resolution_rgb_image.get_path())
     expected_pixels = np.array(
@@ -212,5 +249,21 @@ def test_read_entire_rgb_image():
         1,
         Region2D(width=aicsimageio_server.metadata.width, height=aicsimageio_server.metadata.height)
     )
+
+    np.testing.assert_array_equal(image, expected_pixels)
+
+
+def test_read_rgb_image_with_dask():
+    full_resolution = single_resolution_rgb_image.get_shapes()[0]
+    aicsimageio_server = AICSImageIoServer(single_resolution_rgb_image.get_path())
+    expected_pixels = np.array(
+        [[[single_resolution_rgb_image.get_pixel_value(x, y, c)
+            for x in range(full_resolution.x)]
+            for y in range(full_resolution.y)]
+            for c in range(full_resolution.c)],
+        single_resolution_rgb_image.get_dtype()
+    )
+
+    image = aicsimageio_server.level_to_dask(0).compute()
 
     np.testing.assert_array_equal(image, expected_pixels)

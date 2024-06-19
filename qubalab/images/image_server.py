@@ -1,5 +1,6 @@
-from typing import Union
 import numpy as np
+import dask.array as da
+from typing import Union
 from abc import ABC, abstractmethod
 from PIL import Image
 from .metadata.region_2d import Region2D
@@ -97,6 +98,23 @@ class ImageServer(ABC):
             target_size = (round(region.width / downsample), round(region.height / downsample))
             return self._resize(image, target_size, self._resize_method)
 
+    @abstractmethod
+    def level_to_dask(self, level: int = 0) -> da.Array:
+        """
+        Return a dask array representing a single resolution of the image.
+
+        Pixels of the returned array can be accessed with the following order:
+        (t, c, z, y, x). There may be less dimensions for simple images: for
+        example, an image with a single timepoint and a single z-slice will
+        return an array of dimensions (c, y, x).
+
+        :param level: the pyramid level (0 is full resolution). Must be less than the number
+                      of resolutions of the image
+        :returns: a dask array containing all pixels of the provided level
+        :raises ValueError: when level is not valid
+        """
+        pass
+
     def rebuild_metadata(self):
         """
         Request that the metadata is rebuilt.
@@ -137,6 +155,7 @@ class ImageServer(ABC):
 
         TODO: Consider if this should actually return a dask array or xarray
         TODO: Consider if this should return using the dimension ordering of AICSImageIO
+        TODO: remove in favour of level_to_dask?
         
         :param level: the pyramidal level to read from
         :param region: the region to read

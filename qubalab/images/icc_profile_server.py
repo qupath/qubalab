@@ -1,4 +1,5 @@
 import numpy as np
+import dask.array as da
 import warnings
 import io
 import tifffile
@@ -16,6 +17,9 @@ class IccProfileServer(WrappedImageServer):
     If no ICC Profile is provided, an attempt is made to read the profile from the image using PIL.
     This isn't guaranteed to succeed.
     To find out if it was successful, test whether self.icc_transform is not None.
+
+    Functions of this server returning dask arrays are not lazily computed, which
+    means the entire arrays will fit in memory.
 
     See http://www.andrewjanowczyk.com/application-of-icc-profiles-to-digital-pathology-images/ 
     for a blog post describing where this may be useful, and providing further code.
@@ -61,6 +65,14 @@ class IccProfileServer(WrappedImageServer):
         If this is None, then the server simply returns the original pixels unchanged.
         """
         return self._icc
+
+    def level_to_dask(self, level: int = 0) -> da.Array:
+        image = self.base_server.level_to_dask(level)
+
+        if self._icc:
+            return da.from_array(np.array(ImageCms.applyTransform(Image.fromarray(image.compute()), self._icc)))
+        else:
+            return image
 
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
         image = self.base_server._read_block(level, region)

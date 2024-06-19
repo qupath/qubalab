@@ -63,6 +63,7 @@ class PyramidStore(BaseStore):
         self._store = self._build_store(downsamples=downsamples, name=name, squeeze=squeeze)
 
     def __getitem__(self, key: str):
+        print("key: " + key)
         # Check if key is in metadata
         if key in self._store:
             return self._store[key]

@@ -1,4 +1,5 @@
 import numpy as np
+import dask.array as da
 import math
 from pathlib import Path
 from aicsimageio import AICSImage
@@ -17,8 +18,10 @@ class AICSImageIoServer(ImageServer):
 
     What this actually supports will depend upon how AICSImageIO is installed.
     For example, it may provide Bio-Formats or CZI support... or it may not.
+
     Note that the AICSImage library does not currently handle unit attachment, so the pixel unit
     given by this server will always be 'pixels'.
+    
     Note that the AICSImage library does not properly support pyramids, so you might only get the full
     resolution image when opening a pyramidal image.
     """
@@ -39,6 +42,21 @@ class AICSImageIoServer(ImageServer):
         self._scene = scene
         self._detect_resolutions = detect_resolutions
 
+    def level_to_dask(self, level: int = 0) -> da.Array:
+        if level < 0 or level >= self.metadata.n_resolutions:
+            raise ValueError("The provided level ({0}) is outside the valid range ([0, {1}])".format(level, self.metadata.n_resolutions - 1))
+
+        axes = ("T" if self.metadata.n_timepoints > 1 else "") + \
+            (("S" if "S" in self._reader.dims.order else "C") if self.metadata.n_channels > 1 else "") + \
+            ("Z" if self.metadata.n_z_slices > 1 else "") + \
+            "YX"
+
+        self._reader.set_scene(self._reader.scenes[self._scene + level])
+        return self._reader.get_image_dask_data(axes)
+
+    def close(self):
+        self._reader.close()
+
     def _build_metadata(self) -> ImageServerMetadata:
         return ImageServerMetadata(
             self._path,
@@ -56,9 +74,6 @@ class AICSImageIoServer(ImageServer):
         axes = "TZYX" + ("S" if "S" in self._reader.dims.order else "C")
 
         return self._reader.get_image_dask_data(axes)[t, z, y:y + height, x:x + width, ...].compute()
-
-    def close(self):
-        self._reader.close()
 
     @staticmethod
     def _get_shapes(reader: AICSImage, scene: int) -> tuple[ImageShape, ...]:

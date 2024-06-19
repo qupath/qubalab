@@ -12,9 +12,9 @@ sample_RGB_metadata = ImageServerMetadata(
     "/path/to/img.tiff",
     "Image name",
     (
-        ImageShape(64, 50, c=3),
-        ImageShape(32, 25, c=3),
-        ImageShape(16, 12, c=3)
+        ImageShape(2, 2, c=3),
+        # ImageShape(32, 25, c=3),
+        # ImageShape(16, 12, c=3)
     ),
     PixelCalibration(
         PixelLength.create_microns(2.5),
@@ -37,7 +37,7 @@ class SampleRGBServer(ImageServer):
         pass
 
 
-def test_group_length():
+def test_group_length_with_server_downsamples():
     sample_RGB_server = SampleRGBServer()
     pyramid_store = PyramidStore(sample_RGB_server)
     root = zarr.Group(store=pyramid_store)
@@ -45,6 +45,17 @@ def test_group_length():
     length = len(root)
 
     assert length == sample_RGB_metadata.n_resolutions
+
+
+def test_group_length_with_custom_downsamples():
+    downsamples = [1, 4, 8, 16]
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server, downsamples=downsamples)
+    root = zarr.Group(store=pyramid_store)
+
+    length = len(root)
+
+    assert length == len(downsamples)
 
 
 def test_group_read_only():
@@ -66,7 +77,7 @@ def test_attributes_multiscales_version():
     assert version == OME_NGFF_SPECIFICATION_VERSION
 
 
-def test_attributes_multiscales_name_when_not_specified():
+def test_attributes_multiscales_name_with_server_name():
     sample_RGB_server = SampleRGBServer()
     pyramid_store = PyramidStore(sample_RGB_server)
     root = zarr.Group(store=pyramid_store)
@@ -76,7 +87,7 @@ def test_attributes_multiscales_name_when_not_specified():
     assert name == sample_RGB_metadata.name
 
 
-def test_attributes_multiscales_name_when_specified():
+def test_attributes_multiscales_name_with_custom_name():
     expected_name = "some name"
     sample_RGB_server = SampleRGBServer()
     pyramid_store = PyramidStore(sample_RGB_server, name=expected_name)
@@ -87,12 +98,23 @@ def test_attributes_multiscales_name_when_specified():
     assert name == expected_name
 
 
-def test_attributes_multiscales_axis_length():
-    expected_axis_length = expected_axis_length = 2 + sum(
-        n > 1 for n in [sample_RGB_metadata.n_channels, sample_RGB_metadata.n_z_slices, sample_RGB_metadata.n_timepoints]
+def test_attributes_multiscales_axis_length_when_dimensions_squeezed():
+    expected_axis_length = 2 + sum(
+        n > 1 for n in [sample_RGB_metadata.n_timepoints, sample_RGB_metadata.n_channels, sample_RGB_metadata.n_z_slices]
     )      # number of dimensions that have more than one element
     sample_RGB_server = SampleRGBServer()
-    pyramid_store = PyramidStore(sample_RGB_server)
+    pyramid_store = PyramidStore(sample_RGB_server, squeeze=True)
+    root = zarr.Group(store=pyramid_store)
+
+    axis_length = len(root.attrs["multiscales"][0]["axes"])
+
+    assert axis_length == expected_axis_length
+
+
+def test_attributes_multiscales_axis_length_when_dimensions_not_squeezed():
+    expected_axis_length = 5
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server, squeeze=False)
     root = zarr.Group(store=pyramid_store)
 
     axis_length = len(root.attrs["multiscales"][0]["axes"])
@@ -130,7 +152,7 @@ def test_attributes_multiscales_x_axis_unit():
     assert axis_x_unit == sample_RGB_metadata.pixel_calibration.length_x.unit
 
 
-def test_attributes_multiscales_datasets_length():
+def test_attributes_multiscales_datasets_length_with_server_downsamples():
     sample_RGB_server = SampleRGBServer()
     pyramid_store = PyramidStore(sample_RGB_server)
     root = zarr.Group(store=pyramid_store)
@@ -140,12 +162,23 @@ def test_attributes_multiscales_datasets_length():
     assert datasets_length == sample_RGB_metadata.n_resolutions
 
 
-def test_attributes_multiscales_datasets_scale_of_full_resolution():
+def test_attributes_multiscales_datasets_length_with_custom_downsamples():
+    downsamples = [1, 4, 8, 16]
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server, downsamples=downsamples)
+    root = zarr.Group(store=pyramid_store)
+
+    datasets_length = len(root.attrs["multiscales"][0]["datasets"])
+
+    assert datasets_length == len(downsamples)
+
+
+def test_attributes_multiscales_datasets_scale_of_full_resolution_with_server_downsamples_and_dimensions_squeezed():
     expected_scales = sum(
-        n > 1 for n in [sample_RGB_metadata.n_channels, sample_RGB_metadata.n_z_slices, sample_RGB_metadata.n_timepoints]
+        n > 1 for n in [sample_RGB_metadata.n_timepoints, sample_RGB_metadata.n_channels, sample_RGB_metadata.n_z_slices]
     ) * [1.0] + [sample_RGB_metadata.downsamples[0], sample_RGB_metadata.downsamples[0]]
     sample_RGB_server = SampleRGBServer()
-    pyramid_store = PyramidStore(sample_RGB_server)
+    pyramid_store = PyramidStore(sample_RGB_server, squeeze=True)
     root = zarr.Group(store=pyramid_store)
 
     scales = root.attrs["multiscales"][0]["datasets"][0]["coordinateTransformations"][0]["scale"]
@@ -153,9 +186,34 @@ def test_attributes_multiscales_datasets_scale_of_full_resolution():
     assert scales == expected_scales
 
 
-def test_attributes_multiscales_datasets_scale_of_lowest_resolution():
+def test_attributes_multiscales_datasets_scale_of_full_resolution_with_server_downsamples_and_dimensions_not_squeezed():
+    expected_scales = [1.0, 1.0, 1.0, sample_RGB_metadata.downsamples[0], sample_RGB_metadata.downsamples[0]]
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server, squeeze=False)
+    root = zarr.Group(store=pyramid_store)
+
+    scales = root.attrs["multiscales"][0]["datasets"][0]["coordinateTransformations"][0]["scale"]
+
+    assert scales == expected_scales
+
+
+def test_attributes_multiscales_datasets_scale_of_full_resolution_with_custom_downsamples():
+    downsamples = [2]
     expected_scales = sum(
-        n > 1 for n in [sample_RGB_metadata.n_channels, sample_RGB_metadata.n_z_slices, sample_RGB_metadata.n_timepoints]
+        n > 1 for n in [sample_RGB_metadata.n_timepoints, sample_RGB_metadata.n_channels, sample_RGB_metadata.n_z_slices]
+    ) * [1.0] + [downsamples[0], downsamples[0]]
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server, downsamples=downsamples)
+    root = zarr.Group(store=pyramid_store)
+
+    scales = root.attrs["multiscales"][0]["datasets"][0]["coordinateTransformations"][0]["scale"]
+
+    assert scales == expected_scales
+
+
+def test_attributes_multiscales_datasets_scale_of_lowest_resolution_with_server_downsamples():
+    expected_scales = sum(
+        n > 1 for n in [sample_RGB_metadata.n_timepoints, sample_RGB_metadata.n_channels, sample_RGB_metadata.n_z_slices]
     ) * [1.0] + [sample_RGB_metadata.downsamples[-1], sample_RGB_metadata.downsamples[-1]]
     sample_RGB_server = SampleRGBServer()
     pyramid_store = PyramidStore(sample_RGB_server)
@@ -166,7 +224,80 @@ def test_attributes_multiscales_datasets_scale_of_lowest_resolution():
     assert scales == expected_scales
 
 
-def test_full_resolution_array_dtype():
+def test_attributes_multiscales_datasets_scale_of_lowest_resolution_with_custom_downsamples():
+    downsamples = [1, 4, 8, 16]
+    expected_scales = sum(
+        n > 1 for n in [sample_RGB_metadata.n_timepoints, sample_RGB_metadata.n_channels, sample_RGB_metadata.n_z_slices]
+    ) * [1.0] + [downsamples[-1], downsamples[-1]]
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server, downsamples=downsamples)
+    root = zarr.Group(store=pyramid_store)
+
+    scales = root.attrs["multiscales"][0]["datasets"][-1]["coordinateTransformations"][0]["scale"]
+
+    assert scales == expected_scales
+
+
+def test_array_chunks_when_size_not_specified():
+    expected_chunks = [
+        1 if sample_RGB_metadata.n_timepoints > 1 else None,
+        sample_RGB_metadata.n_channels if sample_RGB_metadata.n_channels > 1 else None,
+        1 if sample_RGB_metadata.n_z_slices > 1 else None,
+        min(1024, sample_RGB_metadata.height),
+        min(1024, sample_RGB_metadata.width)
+    ]
+    expected_chunks = tuple([c for c in expected_chunks if c is not None])
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server)
+    root = zarr.Group(store=pyramid_store)
+    array = root[0]
+
+    chunks = array.chunks
+
+    assert chunks == expected_chunks
+
+
+def test_array_chunks_when_one_size_specified():
+    chunk_size = 4
+    expected_chunks = [
+        1 if sample_RGB_metadata.n_timepoints > 1 else None,
+        sample_RGB_metadata.n_channels if sample_RGB_metadata.n_channels > 1 else None,
+        1 if sample_RGB_metadata.n_z_slices > 1 else None,
+        min(chunk_size, sample_RGB_metadata.height),
+        min(chunk_size, sample_RGB_metadata.width)
+    ]
+    expected_chunks = tuple([c for c in expected_chunks if c is not None])
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server, chunk_size=chunk_size)
+    root = zarr.Group(store=pyramid_store)
+    array = root[0]
+
+    chunks = array.chunks
+
+    assert chunks == expected_chunks
+
+
+def test_array_chunks_when_two_sizes_specified():
+    chunk_size = (4, 8)
+    expected_chunks = [
+        1 if sample_RGB_metadata.n_timepoints > 1 else None,
+        sample_RGB_metadata.n_channels if sample_RGB_metadata.n_channels > 1 else None,
+        1 if sample_RGB_metadata.n_z_slices > 1 else None,
+        min(chunk_size[1], sample_RGB_metadata.height),
+        min(chunk_size[0], sample_RGB_metadata.width)
+    ]
+    expected_chunks = tuple([c for c in expected_chunks if c is not None])
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server, chunk_size=chunk_size)
+    root = zarr.Group(store=pyramid_store)
+    array = root[0]
+
+    chunks = array.chunks
+
+    assert chunks == expected_chunks
+
+
+def test_array_dtype():
     sample_RGB_server = SampleRGBServer()
     pyramid_store = PyramidStore(sample_RGB_server)
     root = zarr.Group(store=pyramid_store)
@@ -176,4 +307,124 @@ def test_full_resolution_array_dtype():
 
     assert dtype == sample_RGB_metadata.dtype
 
-#TODO: check metadata when different parameters sent to PyramidStore
+
+def test_array_shape_of_full_resolution():
+    level = 0
+    expected_shape = [
+        sample_RGB_metadata.shapes[level].t if sample_RGB_metadata.shapes[level].t > 1 else None,
+        sample_RGB_metadata.shapes[level].c if sample_RGB_metadata.shapes[level].c > 1 else None,
+        sample_RGB_metadata.shapes[level].z if sample_RGB_metadata.shapes[level].z > 1 else None,
+        sample_RGB_metadata.shapes[level].y,
+        sample_RGB_metadata.shapes[level].x
+    ]
+    expected_shape = tuple([c for c in expected_shape if c is not None])
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server)
+    root = zarr.Group(store=pyramid_store)
+    array = root[level]
+
+    shape = array.shape
+
+    assert shape == expected_shape
+
+
+def test_array_shape_of_lowest_resolution():
+    level = sample_RGB_metadata.n_resolutions-1
+    expected_shape = [
+        sample_RGB_metadata.shapes[level].t if sample_RGB_metadata.shapes[level].t > 1 else None,
+        sample_RGB_metadata.shapes[level].c if sample_RGB_metadata.shapes[level].c > 1 else None,
+        sample_RGB_metadata.shapes[level].z if sample_RGB_metadata.shapes[level].z > 1 else None,
+        sample_RGB_metadata.shapes[level].y,
+        sample_RGB_metadata.shapes[level].x
+    ]
+    expected_shape = tuple([c for c in expected_shape if c is not None])
+    sample_RGB_server = SampleRGBServer()
+    pyramid_store = PyramidStore(sample_RGB_server)
+    root = zarr.Group(store=pyramid_store)
+    array = root[level]
+
+    shape = array.shape
+
+    assert shape == expected_shape
+
+
+def test_full_resolution_pixel_values():
+    import dask.array as da
+    from qubalab.images.pyramid import PyramidStore, to_dask
+    from qubalab.images.servers import ImageServer, _validate_block, ImageServerMetadata, ImageShape, PixelCalibration
+    from dataclasses import astuple
+
+    class Test(ImageServer):
+        def read_block(self, level: int, block: tuple[int, ...]) -> np.ndarray:
+            _, x, y, width, height, z, t = astuple(_validate_block(block))
+            print("")
+            print("")
+            print("")
+            print("11111111111111111111")
+            print("")
+            print("")
+            image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)
+            return image[y:y+height, x:x+width, :]
+
+        def _build_metadata(self) -> ImageServerMetadata:
+            return ImageServerMetadata(
+                path="",
+                name="",
+                shapes=(ImageShape(2, 2, c=3),),
+                pixel_calibration=PixelCalibration(),
+                is_rgb=True,
+                dtype=np.uint8
+            )
+            
+
+    level = 0
+    expected_pixels = np.moveaxis(np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype), [0, 1], [1, 2])
+    sample_RGB_server = Test()
+    pyramid_store = PyramidStore(sample_RGB_server)
+
+    root = zarr.open(pyramid_store, mode="r")
+    pyramid = [da.from_zarr(pyramid_store, component=d["path"]) for d in root.attrs["multiscales"][0]["datasets"]]
+    print(pyramid)
+    print(pyramid[0])
+
+
+    array = zarr.Array(pyramid_store, read_only=True, path="0/")
+    print(array)
+    print(array[:])
+
+    pixel_values = pyramid[0][:]
+
+    print()
+    #print(pyramid_store["0/0.0.0.0"])
+
+    d = to_dask(pyramid_store)
+    print(d[0][:].compute())
+    print("oui")
+
+    with np.printoptions(threshold=np.inf):
+        print("")
+        print(pixel_values.compute())
+        print(root)
+        print(expected_pixels)
+
+    np.testing.assert_array_equal(pixel_values, expected_pixels)
+
+
+
+
+
+
+# def test_lowest_resolution_pixel_values():
+#     level = sample_RGB_metadata.n_resolutions-1
+#     expected_pixels = np.moveaxis(np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype), [0, 1], [1, 2])
+#     sample_RGB_server = SampleRGBServer()
+#     pyramid_store = PyramidStore(sample_RGB_server)
+#     root = zarr.Group(store=pyramid_store)
+#     array = root[level]
+
+#     pixel_values = array[:]
+
+#     np.testing.assert_array_equal(pixel_values, expected_pixels)
+
+
+#TODO: float server
