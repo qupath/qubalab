@@ -24,9 +24,6 @@ sample_RGB_metadata = ImageServerMetadata(
 sample_RGB_pixels = [[[[x / shape.x * 255, y / shape.y * 255, 0] for x in range(shape.x)] for y in range(shape.y)] for shape in sample_RGB_metadata.shapes]
 
 class SampleRGBServer(ImageServer):
-    def level_to_dask(self, level: int = 0) -> da.Array:
-        return da.from_array(np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype))
-
     def close(self):
         pass
 
@@ -56,9 +53,6 @@ sample_float32_metadata = ImageServerMetadata(
 sample_float32_pixels = [[[[x / shape.x, y / shape.y, 0] for x in range(shape.x)] for y in range(shape.y)] for shape in sample_RGB_metadata.shapes]
 
 class SampleFloat32Server(ImageServer):
-    def level_to_dask(self, level: int = 0) -> da.Array:
-        return da.from_array(np.array(sample_float32_pixels[level], dtype=sample_float32_metadata.dtype))
-    
     def close():
         pass
 

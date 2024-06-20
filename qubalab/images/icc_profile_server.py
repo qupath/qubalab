@@ -66,14 +66,6 @@ class IccProfileServer(WrappedImageServer):
         """
         return self._icc
 
-    def level_to_dask(self, level: int = 0) -> da.Array:
-        image = self.base_server.level_to_dask(level)
-
-        if self._icc:
-            return da.from_array(np.array(ImageCms.applyTransform(Image.fromarray(image.compute()), self._icc)))
-        else:
-            return image
-
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
         image = self.base_server._read_block(level, region)
 

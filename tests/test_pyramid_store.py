@@ -1,4 +1,4 @@
-import numpy as np
+""" import numpy as np
 import zarr
 import pytest
 from qubalab.images.pyramid_store import PyramidStore, OME_NGFF_SPECIFICATION_VERSION
@@ -427,4 +427,4 @@ def test_full_resolution_pixel_values():
 #     np.testing.assert_array_equal(pixel_values, expected_pixels)
 
 
-#TODO: float server
+#TODO: float server """

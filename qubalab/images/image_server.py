@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from PIL import Image
 from .metadata.region_2d import Region2D
 from .metadata.image_server_metadata import ImageServerMetadata
+from .pyramid_store import PyramidStore
 
 
 class ImageServer(ABC):
@@ -23,6 +24,7 @@ class ImageServer(ABC):
         super().__init__()
         self._metadata = None
         self._resize_method = resize_method
+        self._pyramid_store = None
 
     @property
     def metadata(self) -> ImageServerMetadata:
@@ -98,7 +100,6 @@ class ImageServer(ABC):
             target_size = (round(region.width / downsample), round(region.height / downsample))
             return self._resize(image, target_size, self._resize_method)
 
-    @abstractmethod
     def level_to_dask(self, level: int = 0) -> da.Array:
         """
         Return a dask array representing a single resolution of the image.
@@ -108,12 +109,22 @@ class ImageServer(ABC):
         example, an image with a single timepoint and a single z-slice will
         return an array of dimensions (c, y, x).
 
+        Subclasses of ImageServer may override this function if they can provide
+        a simpler and faster implementation.
+
         :param level: the pyramid level (0 is full resolution). Must be less than the number
                       of resolutions of the image
         :returns: a dask array containing all pixels of the provided level
         :raises ValueError: when level is not valid
         """
-        pass
+
+        if level < 0 or level >= self.metadata.n_resolutions:
+            raise ValueError("The provided level ({0}) is outside the valid range ([0, {1}])".format(level, self.metadata.n_resolutions - 1))
+        
+        if self._pyramid_store is None:
+            self._pyramid_store = PyramidStore(self.metadata, self._read_block)
+
+        return da.from_zarr(self._pyramid_store, component=self._pyramid_store.get_path_of_level(level))
 
     def rebuild_metadata(self):
         """

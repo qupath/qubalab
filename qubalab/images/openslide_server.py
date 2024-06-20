@@ -1,4 +1,5 @@
 import numpy as np
+import dask.array as da
 from pathlib import Path
 from dataclasses import astuple
 import warnings
@@ -40,6 +41,9 @@ class OpenSlideServer(ImageServer):
         self._strip_alpha = strip_alpha
         self._single_channel = single_channel
         self._limit_bounds = limit_bounds
+
+    def close(self):
+        self._reader.close()
 
     def _build_metadata(self) -> ImageServerMetadata:
         n_channels = OpenSlideServer._get_n_channels(self._single_channel, self._strip_alpha)
@@ -90,9 +94,6 @@ class OpenSlideServer(ImageServer):
 
         # Return image, stripping alpha/converting to single-channel if needed
         return im[:, :, :self.metadata.n_channels]
-
-    def close(self):
-        self._reader.close()
 
     @staticmethod
     def _get_n_channels(single_channel: bool, strip_alpha: bool):

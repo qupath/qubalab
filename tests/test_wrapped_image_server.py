@@ -9,9 +9,6 @@ from qubalab.images.metadata.region_2d import Region2D
 
 class SampleServer(ImageServer):
     isClosed = False
-
-    def level_to_dask(self, level: int = 0) -> da.Array:
-        return da.from_array(np.array([]))
     
     def close(self):
         self.isClosed = True
@@ -38,9 +35,6 @@ class SampleServer(ImageServer):
 
 
 class SampleWrappedServer(WrappedImageServer):
-    def level_to_dask(self, level: int = 0) -> da.Array:
-        return da.from_array(np.array([]))
-    
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
         return np.array()
 

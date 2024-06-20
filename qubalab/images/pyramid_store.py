@@ -1,5 +1,5 @@
 from argparse import ArgumentError
-from typing import Union
+from typing import Union, Callable
 from operator import itemgetter
 import numpy as np
 import traceback as tb
@@ -7,7 +7,7 @@ from zarr.storage import Store, init_group, init_array, attrs_key
 from zarr.util import json_dumps
 from .metadata.pixel_calibration import PixelCalibration
 from .metadata.region_2d import Region2D
-from .image_server import ImageServer
+from .metadata.image_server_metadata import ImageServerMetadata
 
 
 OME_NGFF_SPECIFICATION_VERSION = "0.4"
@@ -15,7 +15,7 @@ OME_NGFF_SPECIFICATION_VERSION = "0.4"
 
 class PyramidStore(Store):
     """
-    A wrapper to open an ImageServer with https://github.com/zarr-developers/zarr-python.
+    A zarr store to open an image with https://github.com/zarr-developers/zarr-python.
 
     This class is a Zarr store that represents a zarr group, this one containing
     one or more zarr arrays (depending on the number of resolutions of the image).
@@ -43,7 +43,8 @@ class PyramidStore(Store):
 
     def __init__(
         self,
-        server: ImageServer,
+        metadata: ImageServerMetadata,
+        region_reader: Callable[[int, Region2D], np.ndarray],
         chunk_size: Union[int, tuple[int, int]] = None,
         name: str = None,
         downsamples: tuple[float, ...] = None,
@@ -52,7 +53,9 @@ class PyramidStore(Store):
         """
         Create a Zarr-compatible mapping for a multiresolution image reading pixels from an ImageServer.
 
-        :param server: the image server to open
+        :param metadata: the metadata of the image
+        :param region_reader: a function that takes a level and a region as parameters, and return pixels
+                              of the image belonging to that level and region as a numpy array
         :param chunk_size: the size of the chunks that divide the image. A tuple to set the width/height
                            of the chunks or an integer to set the same value for width/height.
                            By default, chunks will have a size of (y=1024, x=1024)
@@ -66,7 +69,8 @@ class PyramidStore(Store):
         """
 
         super().__init__()
-        self._server = server
+        self._metadata = metadata
+        self._region_reader = region_reader
 
         if chunk_size is None:
             self._chunk_size = (1024, 1024)
@@ -76,31 +80,46 @@ class PyramidStore(Store):
             self._chunk_size = chunk_size
 
         if downsamples is None:
-            self._downsamples = server.metadata.downsamples
+            self._downsamples = self._metadata.downsamples
         else:
             self._downsamples = downsamples
 
         if squeeze:
-            dimensions_to_keep = itemgetter(*[i for i, d in enumerate(self._server.metadata.shape.as_tuple()) if d > 1 or i > 2])
+            dimensions_to_keep = itemgetter(*[i for i, d in enumerate(self._metadata.shape.as_tuple()) if d > 1 or i > 2])
         else:
             dimensions_to_keep = itemgetter(0, 1, 2, 3, 4)
         
         self._dims = ''.join(dimensions_to_keep('tczyx'))
 
         self._root = PyramidStore._create_root(
-            self._server.metadata.name if name is None else name,
+            self._metadata.name if name is None else name,
             dimensions_to_keep,
             self._downsamples,
-            self._server.metadata.pixel_calibration
+            self._metadata.pixel_calibration
         )
 
         PyramidStore._create_arrays(
             self._root,
-            self._server,
+            self._metadata,
             dimensions_to_keep,
             self._downsamples,
             self._chunk_size
         )
+
+    def get_path_of_level(self, level: int):
+        """
+        Return the path of a level within the root group described by this store.
+
+        :param level: the pyramid level (0 is full resolution). Must be less than the number
+                      of resolutions of the image
+        :returns: the path of the provided level within the root group
+        :raises ValueError: when level is not valid
+        """
+        max_level = len(self._root[".zattrs"]["multiscales"][0]["datasets"]) - 1
+        if level < 0 or level > max_level:
+            raise ValueError("The provided level ({0}) is outside the valid range ([0, {1}])".format(level, max_level))
+        
+        return self._root[attrs_key]["multiscales"][0]["datasets"][level]["path"]
 
     def __getitem__(self, key: str):
         # Check if key is in metadata
@@ -113,19 +132,16 @@ class PyramidStore(Store):
 
             # Convert the chunk level a downsample value & also to a server level
             downsample = self._downsamples[level]
-            level_width = int(self._server.metadata.width / downsample)
-            level_height = int(self._server.metadata.height / downsample)
+            level_width = int(self._metadata.width / downsample)
+            level_height = int(self._metadata.height / downsample)
             tile_width = min(level_width, self._chunk_size[0])
             tile_height = min(level_height, self._chunk_size[1])
 
             x = int(round(cx * tile_width * downsample))
             y = int(round(cy * tile_height * downsample))
-            w = int(min(self._server.metadata.width - x, round(tile_width * downsample)))
-            h = int(min(self._server.metadata.height - y, round(tile_height * downsample)))
-            tile = self._server.read_region(
-                downsample,
-                Region2D(x, y, w, h, cz, ct)
-            )
+            w = int(min(self._metadata.width - x, round(tile_width * downsample)))
+            h = int(min(self._metadata.height - y, round(tile_height * downsample)))
+            tile = self._region_reader(level, Region2D(x, y, w, h, cz, ct))
 
             # Chunks should be the same size (according to zarr spec), so pad if needed
             pad_y = tile_height - tile.shape[0]
@@ -161,7 +177,7 @@ class PyramidStore(Store):
     def __eq__(self, other):
         return (
                 isinstance(other, PyramidStore)
-                and self._server == other._server
+                and self._metadata == other._metadata
         )
 
     def __iter__(self):
@@ -211,7 +227,7 @@ class PyramidStore(Store):
         group = dict()
         init_group(group)
 
-        group[attrs_key] = json_dumps(dict(
+        group[attrs_key] = dict(
             multiscales=[
                 dict(
                     name=name,
@@ -240,13 +256,13 @@ class PyramidStore(Store):
                     ])
                 )
             ]
-        ))
+        )
         return group
 
     @staticmethod
     def _create_arrays(
         group: dict[str, bytes],
-        server: ImageServer,
+        metadata: ImageServerMetadata,
         dimensions_to_keep: itemgetter,
         downsamples: tuple[float, ...],
         chunk_size: tuple[int, int]
@@ -256,7 +272,7 @@ class PyramidStore(Store):
         to the provided group.
 
         :param group: the group to add the zarr arrays to
-        :param server: the image server to represent
+        :param metadata: the metadata of the image
         :param dimensions_to_keep: a callable object that returns only the dimensions to keep
                                    when called on a (t,c,z,y,x) iterable. For example, if only the
                                    (t,y,x) dimensions must be kept, dimensions_to_keep([1, 2, 3, 4, 5])
@@ -270,20 +286,20 @@ class PyramidStore(Store):
                 group,
                 path=str(downsample_index),
                 shape=dimensions_to_keep((
-                    server.metadata.n_timepoints,
-                    server.metadata.n_channels,
-                    server.metadata.n_z_slices,
-                    int(server.metadata.height / downsample),
-                    int(server.metadata.width / downsample)
+                    metadata.n_timepoints,
+                    metadata.n_channels,
+                    metadata.n_z_slices,
+                    int(metadata.height / downsample),
+                    int(metadata.width / downsample)
                 )),
                 chunks=dimensions_to_keep((
                     1,
-                    server.metadata.n_channels,
+                    metadata.n_channels,
                     1,
-                    min(int(server.metadata.height / downsample), chunk_size[1]),
-                    min(int(server.metadata.width / downsample), chunk_size[0])
+                    min(int(metadata.height / downsample), chunk_size[1]),
+                    min(int(metadata.width / downsample), chunk_size[0])
                 )),
-                dtype=server.metadata.dtype,
+                dtype=metadata.dtype,
                 compressor=None
             )
 
