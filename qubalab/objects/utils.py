@@ -4,7 +4,7 @@ from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 import numpy as np
 from matplotlib.path import Path
 
-from .objects import ImageObject, _NUCLEUS_GEOMETRY_KEY
+from .objects import ImageFeature, _NUCLEUS_GEOMETRY_KEY
 from geojson import Feature
 
 from typing import Iterable, List, Tuple, Dict
@@ -17,7 +17,7 @@ def _to_geometry(obj, prefer_nucleus: bool = False) -> BaseGeometry:
     if obj is None:
         return None
 
-    if isinstance(obj, ImageObject):
+    if isinstance(obj, ImageFeature):
         obj = obj.nucleus_geometry if prefer_nucleus else obj.geometry
 
     if isinstance(obj, Feature):

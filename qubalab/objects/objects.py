@@ -38,7 +38,7 @@ class Classification(object):
         return self._parent.__str__() + ': ' + self._name
 
 
-class ImageObject(Feature):
+class ImageFeature(Feature):
     """
     GeoJSON Feature with additional properties for image objects.
     """
@@ -75,7 +75,7 @@ class ImageObject(Feature):
         if extra_properties is not None:
             props.update(extra_properties)
         super().__init__(geometry=to_geometry(geometry), properties=props, id=object_id)
-        self.type = 'Feature'
+        self['type'] = 'Feature'
 
 
     @classmethod
@@ -93,10 +93,6 @@ class ImageObject(Feature):
     @property
     def object_type(self) -> str:
         return self.properties['object_type']
-
-    @object_type.setter
-    def object_type(self, object_type: str) -> str:
-        self.properties['object_type'] = object_type
 
     @property
     def is_detection(self) -> bool:
@@ -128,13 +124,6 @@ class ImageObject(Feature):
                 return value
         raise ValueError('Color value must be an int between 0 and 255, or a float between 0 and 1')
 
-    @color.setter
-    def color(self, rgb: Union[Tuple[int, int, int], Tuple[float, float, float]]):
-        if len(rgb) != 3:
-            raise ValueError('Color must be a tuple of length 3')
-        rgb = tuple(ImageObject._validate_rgb_value(v) for v in rgb)
-        self.properties['color'] = rgb
-
     @property
     def measurements(self) -> Dict[str, float]:
         measurements = self.properties.get('measurements')
@@ -143,11 +132,6 @@ class ImageObject(Feature):
             self.properties['measurements'] = measurements
         return measurements
 
-    @measurements.setter
-    def measurements(self, measurements: Dict[str, float]):
-        self.properties['measurements'] = {str(k): float(v) for k, v in measurements.items()}
-
-
     @property
     def nucleus_geometry(self) -> Geometry:
         extra = self.properties.get('extra_geometries')
@@ -155,47 +139,54 @@ class ImageObject(Feature):
             return extra.get(_NUCLEUS_GEOMETRY_KEY)
         return None
 
-    @nucleus_geometry.setter
-    def nucleus_geometry(self, geometry: Geometry):
-        self.properties['extra_geometries'][_NUCLEUS_GEOMETRY_KEY] = to_geometry(geometry)
-
     @property
     def name(self) -> str:
-        return self.properties
-
-    @name.setter
-    def name(self, name: str):
-        self.properties['name'] = name
+        return self.properties.get('name')
 
     @property
     def classification(self) -> Classification:
         return self.properties.get('classification')
 
-    @classification.setter
-    def classification(self, classification: Classification):
-        self.properties['classification'] = classification
+    def __setattr__(self, name, value):
+        if name == 'name':
+            self.properties['name'] = value
+        elif name == 'classification':
+            self.properties['classification'] = value
+        elif name == 'measurements':
+            self.properties['measurements'] = {str(k): float(v) for k, v in value.items()}
+        elif name == 'object_type':
+            self.properties['object_type'] = value
+        elif name == 'color':
+            if len(value) != 3:
+                raise ValueError('Color must be a tuple of length 3')
+            rgb = tuple(ImageFeature._validate_rgb_value(v) for v in value)
+            self.properties['color'] = rgb
+        elif name == 'nucleus_geometry':
+            self.properties['extra_geometries'][_NUCLEUS_GEOMETRY_KEY] = to_geometry(value)
+        else:
+            super().__setattr__(name, value)
 
     # @property
     # def properties(self) -> Dict[str, Any]:
     #     return self['properties']
 
     # @property
-    # def parent(self) -> 'ImageObject':
+    # def parent(self) -> 'ImageFeature':
     #     return self._parent
     #
     # @parent.setter
-    # def parent(self, parent: 'ImageObject'):
+    # def parent(self, parent: 'ImageFeature'):
     #     self._parent = parent
 
 
 def create_tile(geometry, classification: Classification = None, name: str = None,
                 measurements: Dict[str, float] = None, object_id: uuid.UUID = None):
-    return ImageObject(geometry=geometry, classification=classification, name=name, measurements=measurements,
-                       object_type=types.TILE, object_id=object_id)
+    return ImageFeature(geometry=geometry, classification=classification, name=name, measurements=measurements,
+                        object_type=types.TILE, object_id=object_id)
 
 
 def create_detection(geometry, **kwargs):
-    return ImageObject(geometry=geometry, object_type=types.DETECTION, **kwargs)
+    return ImageFeature(geometry=geometry, object_type=types.DETECTION, **kwargs)
 
 
 def create_cell(geometry, nucleus_geometry, **kwargs):
@@ -204,11 +195,11 @@ def create_cell(geometry, nucleus_geometry, **kwargs):
         extra_geometries = {_NUCLEUS_GEOMETRY_KEY: nucleus_geometry}
     else:
         extra_geometries = None
-    return ImageObject(geometry=geometry, extra_geometries=extra_geometries, **kwargs)
+    return ImageFeature(geometry=geometry, extra_geometries=extra_geometries, **kwargs)
 
 
 def create_annotation(geometry, **kwargs):
-    return ImageObject(geometry=geometry, object_type=types.ANNOTATION, **kwargs)
+    return ImageFeature(geometry=geometry, object_type=types.ANNOTATION, **kwargs)
 
 
 def get_classification(name: str, color: Tuple[int, int, int] = None):

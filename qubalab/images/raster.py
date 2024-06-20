@@ -10,7 +10,7 @@ from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from qubalab.objects import utils
 import numpy as np
 from typing import Union, Iterable, Dict, Tuple
-from qubalab.objects import ImageObject, Classification, get_classification
+from qubalab.objects import ImageFeature, Classification, get_classification
 from shapely.strtree import STRtree
 from math import ceil
 import rasterio.features
@@ -71,7 +71,7 @@ def labels_to_features(lab: np.ndarray, object_type='annotation', connectivity: 
     return features
 
 
-def rasterize(image_objects: Iterable[object | BaseGeometry | ImageObject] = None,
+def rasterize(image_objects: Iterable[object | BaseGeometry | ImageFeature] = None,
               region: Union[Tuple, Region2D] = None,
               downsample: float = None,
               value: Union[Iterable, float, int] = 255,
@@ -247,7 +247,7 @@ class LabeledImageServer(WrappedImageServer):
 
     def __init__(self,
                  base_server: ImageServer,
-                 image_objects: Iterable[ImageObject],
+                 image_objects: Iterable[ImageFeature],
                  label_map: Dict[Classification, int] = None,
                  downsample: float = None,
                  multichannel: bool = False,
@@ -297,7 +297,7 @@ class LabeledImageServer(WrappedImageServer):
     def _build_metadata(self) -> ImageServerMetadata:
         return self._metadata
 
-    def _build_cache(self, image_objects: Iterable[ImageObject]):
+    def _build_cache(self, image_objects: Iterable[ImageFeature]):
         geometries = []
         lab = 1
         for path_object in image_objects:

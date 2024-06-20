@@ -14,7 +14,7 @@ import numpy as np
 
 from dask import array as da
 
-from ..objects import ImageObject, to_geometry
+from ..objects import ImageFeature, to_geometry
 from ..objects import types
 import geojson
 from geojson import Feature
@@ -522,7 +522,7 @@ def _geojson_from_string(json: str, **kwargs):
         return geojson.loads(json, parse_constant=None, **kwargs)
 
 
-def _as_image_object(feature: Feature) -> ImageObject:
+def _as_image_object(feature: Feature) -> ImageFeature:
     geometry = _find_property(feature, 'geometry')
 
     plane = _find_property(feature, 'plane')
@@ -546,7 +546,7 @@ def _as_image_object(feature: Feature) -> ImageObject:
         args['extra_geometries'] = dict(nucleus=nucleus_geometry)
 
     args['extra_properties'] = {k: v for k, v in feature['properties'].items() if k not in args and v is not None}
-    return ImageObject(**args)
+    return ImageFeature(**args)
 
 
 def refresh_qupath(gateway: JavaGateway = None):
