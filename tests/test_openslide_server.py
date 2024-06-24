@@ -80,15 +80,18 @@ def test_downsamples():
     assert downsamples == multi_resolution_uint8_3channels.get_downsamples()
 
 
-def test_read_entire_image():
-    full_resolution = multi_resolution_uint8_3channels.get_shapes()[0]
-    downsample = multi_resolution_uint8_3channels.get_downsamples()[0]
+def test_read_full_resolution_image():
+    level = 0
+    full_resolution = multi_resolution_uint8_3channels.get_shapes()[level]
+    downsample = multi_resolution_uint8_3channels.get_downsamples()[level]
     openslide_server = OpenSlideServer(multi_resolution_uint8_3channels.get_path())
-    expected_pixels = np.array([[[
-        multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, 0),
-        multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, 1),
-        multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, 2)
-    ] for x in range(full_resolution.x)] for y in range(full_resolution.y)], multi_resolution_uint8_3channels.get_dtype())
+    expected_pixels = np.array(
+        [[[multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, c)
+            for x in range(full_resolution.x)]
+            for y in range(full_resolution.y)]
+            for c in range(full_resolution.c)],
+        multi_resolution_uint8_3channels.get_dtype()
+    )
 
     image = openslide_server.read_region(
         downsample,
@@ -99,14 +102,17 @@ def test_read_entire_image():
 
 
 def test_read_lower_resolution_image():
-    lowest_resolution = multi_resolution_uint8_3channels.get_shapes()[-1]
-    downsample = multi_resolution_uint8_3channels.get_downsamples()[-1]
+    level = len(multi_resolution_uint8_3channels.get_shapes()) - 1
+    lowest_resolution = multi_resolution_uint8_3channels.get_shapes()[level]
+    downsample = multi_resolution_uint8_3channels.get_downsamples()[level]
     openslide_server = OpenSlideServer(multi_resolution_uint8_3channels.get_path())
-    expected_pixels = np.array([[[
-        multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, 0),
-        multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, 1),
-        multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, 2)
-    ] for x in range(lowest_resolution.x)] for y in range(lowest_resolution.y)], multi_resolution_uint8_3channels.get_dtype())
+    expected_pixels = np.array(
+        [[[multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, c)
+            for x in range(lowest_resolution.x)]
+            for y in range(lowest_resolution.y)]
+            for c in range(lowest_resolution.c)],
+        multi_resolution_uint8_3channels.get_dtype()
+    )
 
     image = openslide_server.read_region(
         downsample,

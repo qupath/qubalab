@@ -11,7 +11,6 @@ from .metadata.image_shape import ImageShape
 from .metadata.region_2d import Region2D
 
 
-
 class AICSImageIoServer(ImageServer):
     """
     An ImageServer using AICSImageIO (https://github.com/AllenCellModeling/aicsimageio).
@@ -71,9 +70,9 @@ class AICSImageIoServer(ImageServer):
         x, y, width, height, z, t = astuple(region)
         
         self._reader.set_scene(self._reader.scenes[self._scene + level])
-        axes = "TZYX" + ("S" if "S" in self._reader.dims.order else "C")
+        axes = "TZ" + ("S" if "S" in self._reader.dims.order else "C") + "YX"
 
-        return self._reader.get_image_dask_data(axes)[t, z, y:y + height, x:x + width, ...].compute()
+        return self._reader.get_image_dask_data(axes)[t, z, :, y:y + height, x:x + width].compute()
 
     @staticmethod
     def _get_shapes(reader: AICSImage, scene: int) -> tuple[ImageShape, ...]:

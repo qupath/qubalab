@@ -89,11 +89,11 @@ class OpenSlideServer(ImageServer):
         y += self._bounds[1]
 
         image = self._reader.read_region((x, y), level, (width, height))
-        im = np.asarray(image)
+        im = np.moveaxis(np.asarray(image), 2, 0)
         image.close()
 
         # Return image, stripping alpha/converting to single-channel if needed
-        return im[:, :, :self.metadata.n_channels]
+        return im[:self.metadata.n_channels, :, :]
 
     @staticmethod
     def _get_n_channels(single_channel: bool, strip_alpha: bool):

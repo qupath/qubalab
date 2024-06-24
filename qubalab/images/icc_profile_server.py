@@ -18,9 +18,6 @@ class IccProfileServer(WrappedImageServer):
     This isn't guaranteed to succeed.
     To find out if it was successful, test whether self.icc_transform is not None.
 
-    Functions of this server returning dask arrays are not lazily computed, which
-    means the entire arrays will fit in memory.
-
     See http://www.andrewjanowczyk.com/application-of-icc-profiles-to-digital-pathology-images/ 
     for a blog post describing where this may be useful, and providing further code.
     
@@ -70,7 +67,7 @@ class IccProfileServer(WrappedImageServer):
         image = self.base_server._read_block(level, region)
 
         if self._icc:
-            return np.array(ImageCms.applyTransform(Image.fromarray(image), self._icc))
+            return np.transpose(np.array(ImageCms.applyTransform(Image.fromarray(np.transpose(image, axes=[2, 1, 0])), self._icc)), axes=[2, 1, 0])
         else:
             return image
     

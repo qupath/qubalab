@@ -59,9 +59,6 @@ class ImageServer(ABC):
         This means that, except when the downsample is 1.0, the width and height of the returned image will usually
         be different from the width and height passed as parameters.
 
-        TODO: Consider if this should actually return a dask array or xarray
-        TODO: Consider if this should return using the dimension ordering of AICSImageIO
-
         :param downsample: the downsample to use
         :param region: a Region2D object or a tuple of integers (x, y, width, height, z, t)
         :param x: the x coordinate of the region to read
@@ -71,7 +68,7 @@ class ImageServer(ABC):
         :param z: the z index of the region to read
         :param t: the t index of the region to read
         :return: a 3-dimensional numpy array containing the requested pixels from the 2D region.
-                 The [y, x, c] index of the returned array returns the channel of index c of the
+                 The [c, y, x] index of the returned array returns the channel of index c of the
                  pixel located at [x, y] on the image
         :raises ValueError: when the region to read is not specified
         """
@@ -110,7 +107,7 @@ class ImageServer(ABC):
         return an array of dimensions (c, y, x).
 
         Subclasses of ImageServer may override this function if they can provide
-        a simpler and faster implementation.
+        a faster implementation.
 
         :param level: the pyramid level (0 is full resolution). Must be less than the number
                       of resolutions of the image
@@ -161,18 +158,12 @@ class ImageServer(ABC):
 
         Coordinates are provided in the coordinate space of the level, NOT the full-resolution image.
         This means that the returned image should have the width and height specified.
-
-        Note that this is a lower-level method than :func:`read_region`; usually you should use that method instead.
-
-        TODO: Consider if this should actually return a dask array or xarray
-        TODO: Consider if this should return using the dimension ordering of AICSImageIO
-        TODO: remove in favour of level_to_dask?
         
         :param level: the pyramidal level to read from
         :param region: the region to read
         :return: a 3-dimensional numpy array containing the requested pixels from the 2D region.
-                 The [y, x, c] index of the returned array returns the channel of index c of the
-                 pixel located at [x, y] on the image
+                 The [c, y, x] index of the returned array returns the channel of index c of the
+                 pixel located at coordinates [x, y] on the image
         """
         pass
     
@@ -209,12 +200,13 @@ class ImageServer(ABC):
 
         This uses the implementation from PIL.
 
-        :param image: the image to resize. Either a 3-dimensional numpy array with dimensions (y, x, channel)
+        :param image: the image to resize. Either a 3-dimensional numpy array with dimensions (c, y, x)
                       or a PIL image
         :param target_size: target size in (width, height) format
         :param resample: resampling mode to use, by default bicubic
-        :return: the resized image, either a 3-dimensional numpy array with dimensions (y, x, channel) or a PIL image
+        :return: the resized image, either a 3-dimensional numpy array with dimensions (c, y, x) or a PIL image
         """
+
         if ImageServer._get_size(image) == target_size:
             return image
 
@@ -233,17 +225,16 @@ class ImageServer(ABC):
                 pilImage = ImageServer._resize(pilImage, target_size=target_size, resample=resample)
                 return np.asarray(pilImage).astype(image.dtype)
             else:
-                image_channels = [
-                    ImageServer._resize(image[:, :, c, ...], target_size=target_size, resample=resample) for c in range(image.shape[2])
-                ]
-                if len(image_channels) == 1:
-                    return np.atleast_3d(image_channels[0])
-                else:
-                    return np.stack(image_channels, axis=-1)
+                return np.stack([
+                    ImageServer._resize(image[c, :, :], target_size=target_size, resample=resample) for c in range(image.shape[0])
+                ])
         
     @staticmethod
     def _get_size(image: Union[np.ndarray, Image.Image]):
         """
         Get the size of an image as a two-element tuple (width, height).
+
+        :param image: the image whose size should be computed. Either a 3-dimensional numpy array with dimensions (c, y, x)
+                      or a PIL image
         """
-        return image.size if isinstance(image, Image.Image) else image.shape[:2][::-1]
+        return image.size if isinstance(image, Image.Image) else image.shape[1:][::-1]

@@ -61,11 +61,13 @@ def test_read_uint8_3channels_image():
     full_resolution = multi_resolution_uint8_3channels.get_shapes()[level]
     downsample = multi_resolution_uint8_3channels.get_downsamples()[level]
     aicsimageio_server = AICSImageIoServer(multi_resolution_uint8_3channels.get_path())
-    expected_pixels = np.array([[[
-        multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, 0),
-        multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, 1),
-        multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, 2)
-    ] for x in range(full_resolution.x)] for y in range(full_resolution.y)], multi_resolution_uint8_3channels.get_dtype())
+    expected_pixels = np.array(
+        [[[multi_resolution_uint8_3channels.get_pixel_value(downsample, x, y, c)
+            for x in range(full_resolution.x)]
+            for y in range(full_resolution.y)]
+            for c in range(full_resolution.c)],
+        multi_resolution_uint8_3channels.get_dtype()
+    )
 
     image = aicsimageio_server.read_region(
         downsample,
@@ -151,9 +153,9 @@ def test_read_float_5d_image():
     aicsimageio_server = AICSImageIoServer(single_resolution_float_5d.get_path())
     expected_pixels = np.array(
         [[[single_resolution_float_5d.get_pixel_value(x, y, c, z, t)
-            for c in range(full_resolution.c)]
             for x in range(full_resolution.x)]
-            for y in range(full_resolution.y)],
+            for y in range(full_resolution.y)]
+            for c in range(full_resolution.c)],
         single_resolution_float_5d.get_dtype()
     )
 
@@ -239,9 +241,9 @@ def test_read_rgb_image():
     aicsimageio_server = AICSImageIoServer(single_resolution_rgb_image.get_path())
     expected_pixels = np.array(
         [[[single_resolution_rgb_image.get_pixel_value(x, y, c)
-            for c in range(full_resolution.c)]
             for x in range(full_resolution.x)]
-            for y in range(full_resolution.y)],
+            for y in range(full_resolution.y)]
+            for c in range(full_resolution.c)],
         single_resolution_rgb_image.get_dtype()
     )
 

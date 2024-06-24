@@ -142,6 +142,7 @@ class ImageServerMetadata:
         :param lower_resolution_shape: a lower resolution shape
         :return: the downsample between the higher and the lower resolution shape
         """
+
         dx = higher_resolution_shape.x / lower_resolution_shape.x
         dy = higher_resolution_shape.y / lower_resolution_shape.y
         downsample = (dx + dy) / 2.0

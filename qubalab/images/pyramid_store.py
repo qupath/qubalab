@@ -4,7 +4,6 @@ from operator import itemgetter
 import numpy as np
 import traceback as tb
 from zarr.storage import Store, init_group, init_array, attrs_key
-from zarr.util import json_dumps
 from .metadata.pixel_calibration import PixelCalibration
 from .metadata.region_2d import Region2D
 from .metadata.image_server_metadata import ImageServerMetadata
@@ -55,7 +54,8 @@ class PyramidStore(Store):
 
         :param metadata: the metadata of the image
         :param region_reader: a function that takes a level and a region as parameters, and return pixels
-                              of the image belonging to that level and region as a numpy array
+                              of the image belonging to that level and region as a numpy array with
+                              dimensions (c, y, x)
         :param chunk_size: the size of the chunks that divide the image. A tuple to set the width/height
                            of the chunks or an integer to set the same value for width/height.
                            By default, chunks will have a size of (y=1024, x=1024)
