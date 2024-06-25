@@ -1,5 +1,5 @@
 import numpy as np
-import dask.array as da
+from PIL import Image
 from qubalab.images.image_server import ImageServerMetadata, ImageServer
 from qubalab.images.metadata.image_shape import ImageShape
 from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
@@ -177,26 +177,56 @@ def test_tile_of_full_resolution_RGB_image():
     np.testing.assert_array_equal(image, expected_image)
 
 
-def test_dowsampled_RGB_image_size():
+def test_downsampled_RGB_image():
     downsample = 1.5
-    expected_width = round(sample_RGB_metadata.width / downsample)
-    expected_height = round(sample_RGB_metadata.height / downsample)
+    c = 0
+    expected_pixels = Image \
+        .fromarray(np.array(sample_RGB_pixels[0], sample_RGB_metadata.dtype)[c, ...]) \
+        .resize((round(sample_RGB_metadata.width / downsample), round(sample_RGB_metadata.height / downsample)))
     sample_RGB_server = SampleRGBServer()
 
-    image = sample_RGB_server.read_region(downsample, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
+    pixels = sample_RGB_server.read_region(downsample, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
 
-    assert expected_width == image.shape[2] and expected_height == image.shape[1]
+    np.testing.assert_array_equal(pixels[c, ...], expected_pixels)
 
 
-def test_scaled_RGB_image_size():
+def test_scaled_RGB_image():
     downsample = 0.5
-    expected_width = round(sample_RGB_metadata.width / downsample)
-    expected_height = round(sample_RGB_metadata.height / downsample)
+    c = 0
+    expected_pixels = Image \
+        .fromarray(np.array(sample_RGB_pixels[0], sample_RGB_metadata.dtype)[c, ...]) \
+        .resize((round(sample_RGB_metadata.width / downsample), round(sample_RGB_metadata.height / downsample)))
     sample_RGB_server = SampleRGBServer()
 
-    image = sample_RGB_server.read_region(downsample, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
+    pixels = sample_RGB_server.read_region(downsample, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
 
-    assert expected_width == image.shape[2] and expected_height == image.shape[1]
+    np.testing.assert_array_equal(pixels[c, ...], expected_pixels)
+
+
+def test_downsampled_RGB_image_with_dask():
+    downsample = 1.5
+    c = 0
+    expected_pixels = Image \
+        .fromarray(np.array(sample_RGB_pixels[0], sample_RGB_metadata.dtype)[c, ...]) \
+        .resize((round(sample_RGB_metadata.width / downsample), round(sample_RGB_metadata.height / downsample)))
+    sample_RGB_server = SampleRGBServer()
+
+    pixels = sample_RGB_server.read_region(downsample, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
+
+    np.testing.assert_array_equal(pixels[c, ...], expected_pixels)
+
+
+def test_downsampled_RGB_image_with_dask():
+    downsample = 1.5
+    c = 0
+    expected_pixels = Image \
+        .fromarray(np.array(sample_RGB_pixels[0], sample_RGB_metadata.dtype)[c, ...]) \
+        .resize((round(sample_RGB_metadata.width / downsample), round(sample_RGB_metadata.height / downsample)))
+    sample_RGB_server = SampleRGBServer()
+
+    pixels = sample_RGB_server.to_dask(downsample).compute()
+
+    np.testing.assert_allclose(pixels[c, ...], expected_pixels, atol=2)
 
 
 def test_full_resolution_float32_image_with_region():
@@ -303,23 +333,52 @@ def test_tile_of_full_resolution_float32_image():
     np.testing.assert_array_equal(image, expected_image)
 
 
-def test_dowsampled_float32_image_size():
+def test_downsampled_float32_image():
     downsample = 1.5
-    expected_width = round(sample_float32_metadata.width / downsample)
-    expected_height = round(sample_float32_metadata.height / downsample)
+    z = 0
+    c = 0
+    t = 0
+    expected_pixels = Image \
+        .fromarray(np.array(sample_float32_pixels[0], sample_float32_metadata.dtype)[t, c, z, ...]) \
+        .resize((round(sample_float32_metadata.width / downsample), round(sample_float32_metadata.height / downsample)))
     sample_float32_server = SampleFloat32Server()
 
-    image = sample_float32_server.read_region(downsample, Region2D(x=0, y=0, width=sample_float32_metadata.width, height=sample_float32_metadata.height))
+    pixels = sample_float32_server.read_region(
+        downsample,
+        Region2D(0, 0, sample_float32_metadata.width, sample_float32_metadata.height, z, t)
+    )
 
-    assert expected_width == image.shape[2] and expected_height == image.shape[1]
+    np.testing.assert_array_equal(pixels[c, ...], expected_pixels)
 
 
-def test_scaled_float32_image_size():
+def test_scaled_float32_image():
     downsample = 0.5
-    expected_width = round(sample_float32_metadata.width / downsample)
-    expected_height = round(sample_float32_metadata.height / downsample)
+    z = 0
+    c = 0
+    t = 0
+    expected_pixels = Image \
+        .fromarray(np.array(sample_float32_pixels[0], sample_float32_metadata.dtype)[t, c, z, ...]) \
+        .resize((round(sample_float32_metadata.width / downsample), round(sample_float32_metadata.height / downsample)))
     sample_float32_server = SampleFloat32Server()
 
-    image = sample_float32_server.read_region(downsample, Region2D(x=0, y=0, width=sample_float32_metadata.width, height=sample_float32_metadata.height))
+    pixels = sample_float32_server.read_region(
+        downsample,
+        Region2D(0, 0, sample_float32_metadata.width, sample_float32_metadata.height, z, t)
+    )
 
-    assert expected_width == image.shape[2] and expected_height == image.shape[1]
+    np.testing.assert_array_equal(pixels[c, ...], expected_pixels)
+
+
+def test_downsampled_float32_image_with_dask():
+    downsample = 1.5
+    z = 0
+    c = 0
+    t = 0
+    expected_pixels = Image \
+        .fromarray(np.array(sample_float32_pixels[0], sample_float32_metadata.dtype)[t, c, z, ...]) \
+        .resize((round(sample_float32_metadata.width / downsample), round(sample_float32_metadata.height / downsample)))
+    sample_float32_server = SampleFloat32Server()
+
+    pixels = sample_float32_server.to_dask(downsample).compute()
+
+    np.testing.assert_allclose(pixels[t, c, z, ...], expected_pixels, atol=2)

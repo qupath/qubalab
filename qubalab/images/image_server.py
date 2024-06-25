@@ -1,11 +1,13 @@
 import numpy as np
 import dask.array as da
-from typing import Union
+import dask
+from dask_image import ndinterp
+import warnings
+from typing import Union, Iterable
 from abc import ABC, abstractmethod
 from PIL import Image
 from .metadata.region_2d import Region2D
 from .metadata.image_server_metadata import ImageServerMetadata
-from .pyramid_store import PyramidStore
 
 
 class ImageServer(ABC):
@@ -24,7 +26,6 @@ class ImageServer(ABC):
         super().__init__()
         self._metadata = None
         self._resize_method = resize_method
-        self._pyramid_store = None
 
     @property
     def metadata(self) -> ImageServerMetadata:
@@ -54,10 +55,8 @@ class ImageServer(ABC):
         If a region is passed, the other parameters (except for the downsample) are ignored.
 
         Important: coordinates and width/height values are given in the coordinate space of the full-resolution image,
-        and the downsample is applied before reading the region.
-
-        This means that, except when the downsample is 1.0, the width and height of the returned image will usually
-        be different from the width and height passed as parameters.
+        and the downsample is applied before reading the region. This means that, except when the downsample is 1.0,
+        the width and height of the returned image will usually be different from the width and height passed as parameters.
 
         :param downsample: the downsample to use
         :param region: a Region2D object or a tuple of integers (x, y, width, height, z, t)
@@ -69,7 +68,7 @@ class ImageServer(ABC):
         :param t: the t index of the region to read
         :return: a 3-dimensional numpy array containing the requested pixels from the 2D region.
                  The [c, y, x] index of the returned array returns the channel of index c of the
-                 pixel located at [x, y] on the image
+                 pixel located at coordinates [x, y] on the image
         :raises ValueError: when the region to read is not specified
         """
 
@@ -96,32 +95,113 @@ class ImageServer(ABC):
         else:
             target_size = (round(region.width / downsample), round(region.height / downsample))
             return self._resize(image, target_size, self._resize_method)
-
-    def level_to_dask(self, level: int = 0) -> da.Array:
+        
+    def level_to_dask(self, level: int = 0, chunk_width: int = 1024, chunk_height: int = 1024) -> da.Array:
         """
         Return a dask array representing a single resolution of the image.
 
         Pixels of the returned array can be accessed with the following order:
         (t, c, z, y, x). There may be less dimensions for simple images: for
         example, an image with a single timepoint and a single z-slice will
-        return an array of dimensions (c, y, x).
+        return an array of dimensions (c, y, x). However, there will always be
+        dimensions x and y, even if they have a size of 1.
 
         Subclasses of ImageServer may override this function if they can provide
         a faster implementation.
 
         :param level: the pyramid level (0 is full resolution). Must be less than the number
                       of resolutions of the image
+        :param chunk_width: the image will be read chunk by chunk. This parameter specifies the
+                            size of the chunks on the x-axis
+        :param chunk_height: the size of the chunks on the y-axis
         :returns: a dask array containing all pixels of the provided level
         :raises ValueError: when level is not valid
         """
-
         if level < 0 or level >= self.metadata.n_resolutions:
-            raise ValueError("The provided level ({0}) is outside the valid range ([0, {1}])".format(level, self.metadata.n_resolutions - 1))
-        
-        if self._pyramid_store is None:
-            self._pyramid_store = PyramidStore(self.metadata, self._read_block)
+            raise ValueError(
+                "The provided level ({0}) is outside of the valid range ([0, {1}])".format(level, self.metadata.n_resolutions - 1)
+            )
 
-        return da.from_zarr(self._pyramid_store, component=self._pyramid_store.get_path_of_level(level))
+        ts = []
+        for t in range(self.metadata.n_timepoints):
+            zs = []
+            for z in range(self.metadata.n_z_slices):
+                xs = []
+                for x in range(0, self.metadata.shapes[level].x, chunk_width):
+                    ys = []
+                    for y in range(0, self.metadata.shapes[level].y, chunk_height):
+                        ys.append(da.from_delayed(
+                            dask.delayed(self._read_block)(level, Region2D(x, y, chunk_width, chunk_height, z, t)),
+                            shape=(
+                                self.metadata.n_channels,
+                                min(chunk_height, self.metadata.shapes[level].y - y),
+                                min(chunk_width, self.metadata.shapes[level].x - x),
+                            ),
+                            dtype=self.metadata.dtype
+                        ))
+                    xs.append(da.concatenate(ys, axis=1))
+                zs.append(da.concatenate(xs, axis=2))
+            ts.append(da.stack(zs))
+        image = da.stack(ts)
+
+        # Swap channels and z-stacks axis
+        image = da.swapaxes(image, 1, 2)        
+
+        # Remove axis of length 1
+        axes_to_squeeze = []
+        if self.metadata.n_timepoints == 1:
+            axes_to_squeeze.append(0)
+        if self.metadata.n_channels == 1:
+            axes_to_squeeze.append(1)
+        if self.metadata.n_z_slices == 1:
+            axes_to_squeeze.append(2)
+        image = da.squeeze(image, tuple(axes_to_squeeze))
+        
+        return image
+    
+    def to_dask(self, downsample: Union[float, Iterable[float]] = None):
+        """
+        Convert this image to one or more dask arrays, at any arbitary downsample factor.
+
+        :param: downsample the downsample factor to use, or a list of downsample factors to use.
+                If None, all available resolutions will be used.
+        :return: a dask array or tuple of dask arrays, depending upon whether one or more downsample factors are required
+        """
+
+        if downsample is None:
+            if self.n_resolutions == 1:
+                return self.level_to_dask(level=0)
+            else:
+                return tuple([self.level_to_dask(level=level) for level in range(self.metadata.n_resolutions)])
+
+        if isinstance(downsample, Iterable):
+            return tuple([self.to_dask(downsample=float(d)) for d in downsample])
+
+        level = ImageServer._get_level(self.metadata.downsamples, downsample)
+        array = self.level_to_dask(level=level)
+
+        rescale = downsample / self.metadata.downsamples[level]
+        input_width = array.shape[-1]
+        input_height = array.shape[-2]
+        output_width = int(round(input_width / rescale))
+        output_height = int(round(input_height / rescale))
+        if input_width == output_width and input_height == output_height:
+            return array
+
+        # Couldn't find an easy resizing method for dask arrays... so we try this instead
+        # TODO: Urgently need something better! Performance is terrible for large images - all pixels requested
+        #       upon first compute (even for a small region), and then resized. This is not scalable.
+        if array.size > 10000:
+            warnings.warn('Warning - calling affine_transform on a large dask array can be *very* slow')
+
+        transform = np.eye(array.ndim)
+        transform[array.ndim-1, array.ndim-1] = rescale
+        transform[array.ndim-2, array.ndim-2] = rescale
+        output_shape = list(array.shape)
+        output_shape[-1] = output_width
+        output_shape[-2] = output_height
+
+        return ndinterp.affine_transform(array, transform, output_shape=tuple(output_shape))
 
     def rebuild_metadata(self):
         """
