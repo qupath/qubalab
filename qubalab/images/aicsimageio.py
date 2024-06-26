@@ -1,6 +1,6 @@
 from dask import array as da
 
-from . import ImageServer, ImageServerMetadata, Region2D, ImageShape
+from .servers import ImageServer, ImageServerMetadata, Region2D, ImageShape
 from .servers import _validate_block, PixelCalibration, PixelLength, _get_level
 
 from typing import Tuple, Union, Dict, Any, Iterable

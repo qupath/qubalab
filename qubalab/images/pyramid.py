@@ -20,7 +20,7 @@ class PyramidStore(BaseStore):
     Zarr-compatible wrapper for an ImageServer.
 
     Inspired by https://github.com/manzt/napari-lazy-openslide
-       Copyright (c) 2020, Trevor Manz (BSD-3-clause)
+    Copyright (c) 2020, Trevor Manz (BSD-3-clause)
     """
 
     def __init__(self, server: ImageServer, tile_size: Union[int, Tuple[int, int]] = None, name: str = None,
@@ -63,6 +63,7 @@ class PyramidStore(BaseStore):
         self._store = self._build_store(downsamples=downsamples, name=name, squeeze=squeeze)
 
     def __getitem__(self, key: str):
+        print("key: " + key)
         # Check if key is in metadata
         if key in self._store:
             return self._store[key]

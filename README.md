@@ -33,3 +33,10 @@ By using the same custom fields for things like measurements and classifications
 QuBaLab is not yet available on PyPI, so I'm afraid you'll need to do things manually.
 
 Instructions will be added here whenever I or someone else figures out what they are.
+
+## Development
+
+Install poetry
+poetry install
+poetry run pytest to run tests
+notebooks

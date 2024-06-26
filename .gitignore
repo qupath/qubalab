@@ -133,5 +133,7 @@ dmypy.json
 .pyre/
 
 # IDE
-.idea/notebooks
-notebooks/
+.idea/
+
+# Generated test images
+*.tif
