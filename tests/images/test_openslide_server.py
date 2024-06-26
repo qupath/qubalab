@@ -2,7 +2,7 @@ import numpy as np
 from qubalab.images.openslide_server import OpenSlideServer
 from qubalab.images.metadata.region_2d import Region2D
 from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
-from .res import multi_resolution_uint8_3channels
+from ..res import multi_resolution_uint8_3channels
 
 
 def test_image_name():

@@ -1,7 +1,5 @@
-import numpy as np
 from qubalab.images.metadata.image_shape import ImageShape
 from qubalab.images.metadata.image_server_metadata import ImageServerMetadata
-from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
 from qubalab.images.metadata.image_channel import ImageChannel
 
 
