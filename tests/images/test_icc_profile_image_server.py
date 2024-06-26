@@ -1,5 +1,4 @@
 import numpy as np
-import dask.array as da
 from PIL import ImageCms
 from qubalab.images.image_server import ImageServerMetadata, ImageServer
 from qubalab.images.icc_profile_server import IccProfileServer

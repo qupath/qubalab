@@ -17,6 +17,8 @@ dask-image = "^2024.5.3"
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.0.0"
+matplotlib = "^3.9.0"
+napari = {extras = ["all"], version = "^0.4.19.post1"}
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.2.2"

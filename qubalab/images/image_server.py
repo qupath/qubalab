@@ -130,12 +130,15 @@ class ImageServer(ABC):
                 for x in range(0, self.metadata.shapes[level].x, chunk_width):
                     ys = []
                     for y in range(0, self.metadata.shapes[level].y, chunk_height):
+                        width = min(chunk_width, self.metadata.shapes[level].x - x)
+                        height = min(chunk_height, self.metadata.shapes[level].y - y)
+
                         ys.append(da.from_delayed(
-                            dask.delayed(self._read_block)(level, Region2D(x, y, chunk_width, chunk_height, z, t)),
+                            dask.delayed(self._read_block)(level, Region2D(x, y, width, height, z, t)),
                             shape=(
                                 self.metadata.n_channels,
-                                min(chunk_height, self.metadata.shapes[level].y - y),
-                                min(chunk_width, self.metadata.shapes[level].x - x),
+                                height,
+                                width
                             ),
                             dtype=self.metadata.dtype
                         ))
@@ -202,16 +205,6 @@ class ImageServer(ABC):
         output_shape[-2] = output_height
 
         return ndinterp.affine_transform(array, transform, output_shape=tuple(output_shape))
-
-    def rebuild_metadata(self):
-        """
-        Request that the metadata is rebuilt.
-
-        This shouldn't normally be required, but may be useful in some cases where the 
-        metadata set at initialization has been updated (i.e. this ImageServer wraps 
-        around some mutable instance).
-        """
-        self._metadata = self._build_metadata()
 
     @abstractmethod
     def close(self):
