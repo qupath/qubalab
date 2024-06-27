@@ -6,7 +6,7 @@ import warnings
 from typing import Union, Iterable
 from abc import ABC, abstractmethod
 from PIL import Image
-from .metadata.region_2d import Region2D
+from .region_2d import Region2D
 from .metadata.image_server_metadata import ImageServerMetadata
 
 

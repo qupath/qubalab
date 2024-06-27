@@ -12,7 +12,7 @@ from .image_server import ImageServer
 from .metadata.image_server_metadata import ImageServerMetadata
 from .metadata.pixel_calibration import PixelCalibration, PixelLength
 from .metadata.image_shape import ImageShape
-from .metadata.region_2d import Region2D
+from .region_2d import Region2D
 
 
 class OpenSlideServer(ImageServer):

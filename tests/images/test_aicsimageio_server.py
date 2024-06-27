@@ -1,6 +1,6 @@
 import numpy as np
 from qubalab.images.aicsimageio_server import AICSImageIoServer
-from qubalab.images.metadata.region_2d import Region2D
+from qubalab.images.region_2d import Region2D
 from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
 from ..res import multi_resolution_uint8_3channels, single_resolution_float_5d, single_resolution_rgb_image
 

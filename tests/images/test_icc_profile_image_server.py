@@ -4,7 +4,7 @@ from qubalab.images.image_server import ImageServerMetadata, ImageServer
 from qubalab.images.icc_profile_server import IccProfileServer
 from qubalab.images.metadata.image_shape import ImageShape
 from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
-from qubalab.images.metadata.region_2d import Region2D
+from qubalab.images.region_2d import Region2D
 
 
 sample_RGB_metadata = ImageServerMetadata(
