@@ -1,0 +1,6 @@
+ROOT = 'root'
+ANNOTATION = 'annotation'
+DETECTION = 'detection'
+TILE = 'tile'
+CELL = 'cell'
+TMA_CORE = 'tma_core'
