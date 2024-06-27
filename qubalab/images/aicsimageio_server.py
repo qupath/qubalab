@@ -61,8 +61,8 @@ class AICSImageIoServer(ImageServer):
             self._path,
             Path(self._path).name,
             self._get_shapes(self._reader, self._scene) if self._detect_resolutions else (self._get_scene_shape(self._reader, self._reader.scenes[self._scene]),),
-            self._get_pixel_calibration(self._reader),
-            self._is_rgb(self._reader),
+            self._get_pixel_calibration(self._reader, self._scene),
+            self._is_rgb(self._reader, self._scene),
             np.dtype(self._reader.dtype)
         )
 
@@ -99,7 +99,8 @@ class AICSImageIoServer(ImageServer):
         )
 
     @staticmethod
-    def _get_pixel_calibration(reader: AICSImage) -> PixelCalibration:
+    def _get_pixel_calibration(reader: AICSImage, scene: int) -> PixelCalibration:
+        reader.set_scene(scene)
         sizes = reader.physical_pixel_sizes
 
         if sizes.X or sizes.Y or sizes.Z:
@@ -113,7 +114,8 @@ class AICSImageIoServer(ImageServer):
             return PixelCalibration()
     
     @staticmethod
-    def _is_rgb(reader: AICSImage) -> bool:
+    def _is_rgb(reader: AICSImage, scene: int) -> bool:
+        reader.set_scene(scene)
         return ('S' in reader.dims.order and reader.dims.S in [3, 4]) or (reader.dtype == np.uint8 and reader.dims.C == 3)
 
     @staticmethod

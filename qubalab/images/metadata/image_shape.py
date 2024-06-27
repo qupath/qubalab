@@ -7,9 +7,6 @@ class ImageShape:
     """
     Simple data class to store an image shape.
 
-    Useful to avoid ambiguity about dimension order.
-    TODO: This can potentially be removed if we use xarray instead of numpy arrays, and/or embrace AICSImageIO's
-          dimension ordering standard.
     :param x: the image width
     :param y: the image height
     :param t: the number of time points
