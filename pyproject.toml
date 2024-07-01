@@ -14,6 +14,8 @@ tiffslide = "^2.1.2"
 aicsimageio = "^4.11.0"
 openslide-python = {version = "^1.2.0", markers = "extra == 'openslide' or extra == 'all'", optional = true}
 dask-image = "^2024.5.3"
+py4j = "^0.10.9.7"
+geojson = "^3.1.0"
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.0.0"

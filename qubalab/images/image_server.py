@@ -36,16 +36,17 @@ class ImageServer(ABC):
             self._metadata = self._build_metadata()
         return self._metadata
 
-    def read_region(self,
-                    downsample: float,
-                    region: Union[Region2D, tuple[int, ...]] = None,
-                    x: int = 0,
-                    y: int = 0,
-                    width: int = -1,
-                    height: int = -1,
-                    z: int = 0,
-                    t: int = 0
-                    ) -> np.ndarray:
+    def read_region(
+        self,
+        downsample: float,
+        region: Union[Region2D, tuple[int, ...]] = None,
+        x: int = 0,
+        y: int = 0,
+        width: int = -1,
+        height: int = -1,
+        z: int = 0,
+        t: int = 0
+    ) -> np.ndarray:
         """
         Read pixels from any arbitrary image region, at any resolution determined by the downsample.
 
@@ -162,12 +163,11 @@ class ImageServer(ABC):
         
         return image
     
-    def to_dask(self, downsample: Union[float, Iterable[float]] = None):
+    def to_dask(self, downsample: Union[float, Iterable[float]] = None) -> Union[da.Array, tuple[da.Array, ...]]:
         """
         Convert this image to one or more dask arrays, at any arbitary downsample factor.
 
-        :param: downsample the downsample factor to use, or a list of downsample factors to use.
-                If None, all available resolutions will be used.
+        :param downsample: the downsample factor to use, or a list of downsample factors to use. If None, all available resolutions will be used
         :return: a dask array or tuple of dask arrays, depending upon whether one or more downsample factors are required
         """
 

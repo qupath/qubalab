@@ -1332,6 +1332,17 @@ test-full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "cloudpickle", "dask", "d
 tqdm = ["tqdm"]
 
 [[package]]
+name = "geojson"
+version = "3.1.0"
+description = "Python bindings and utilities for GeoJSON"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "geojson-3.1.0-py3-none-any.whl", hash = "sha256:68a9771827237adb8c0c71f8527509c8f5bef61733aa434cefc9c9d4f0ebe8f3"},
+    {file = "geojson-3.1.0.tar.gz", hash = "sha256:58a7fa40727ea058efc28b0e9ff0099eadf6d0965e04690830208d3ef571adac"},
+]
+
+[[package]]
 name = "h11"
 version = "0.14.0"
 description = "A pure-Python, bring-your-own-I/O implementation of HTTP/1.1"
@@ -3682,6 +3693,17 @@ files = [
 tests = ["pytest"]
 
 [[package]]
+name = "py4j"
+version = "0.10.9.7"
+description = "Enables Python programs to dynamically access arbitrary Java objects"
+optional = false
+python-versions = "*"
+files = [
+    {file = "py4j-0.10.9.7-py2.py3-none-any.whl", hash = "sha256:85defdfd2b2376eb3abf5ca6474b51ab7e0de341c75a02f46dc9b5976f5a5c1b"},
+    {file = "py4j-0.10.9.7.tar.gz", hash = "sha256:0b6e5315bb3ada5cf62ac651d107bb2ebc02def3dee9d9548e3baac644ea8dbb"},
+]
+
+[[package]]
 name = "pyarrow"
 version = "16.1.0"
 description = "Python library for Apache Arrow"
@@ -5627,4 +5649,4 @@ openslide = ["openslide-python"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10"
-content-hash = "6194fc2767a57bd0efdb3e6fa8e22215cf32f9348beecfeb998d710c709d716e"
+content-hash = "6c8861b329bc88e0e1bf043f39bd23420494f98b05ebadad4be4382428a5e2be"

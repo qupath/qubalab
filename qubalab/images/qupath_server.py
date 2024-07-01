@@ -1,10 +1,7 @@
 import numpy as np
 import tempfile
 import os
-import base64
-import warnings
 from enum import Enum
-import imageio
 from py4j.java_gateway import JavaGateway, JavaObject
 from urllib.parse import urlparse, unquote
 from .image_server import ImageServer
@@ -13,7 +10,8 @@ from .metadata.image_shape import ImageShape
 from .metadata.image_channel import ImageChannel
 from .metadata.pixel_calibration import PixelCalibration, PixelLength
 from .region_2d import Region2D
-from ..qupath import py4j       #TODO: update imports
+from .utils import base64_to_image, bytes_to_image
+from ..qupath import qupath_gateway
 
 
 class PixelAccess(Enum):
@@ -57,8 +55,8 @@ class QuPathServer(ImageServer):
         """
         super().__init__(**kwargs)
 
-        self._gateway = py4j._gateway_or_default(gateway) if gateway is None else gateway
-        self._qupath_server = py4j.get_current_image_data(gateway).getServer() if qupath_server is None else qupath_server
+        self._gateway = qupath_gateway.get_default_gateway() if gateway is None else gateway
+        self._qupath_server = qupath_gateway.get_current_image_data(gateway).getServer() if qupath_server is None else qupath_server
         self._pixel_access = pixel_access
 
     def close(self):
@@ -80,7 +78,7 @@ class QuPathServer(ImageServer):
                 )
                 for level in qupath_metadata.getLevels()
             ]),
-            pixel_calibration=QuPathServer._find_qupath_server_pixel_calibration(),
+            pixel_calibration=QuPathServer._find_qupath_server_pixel_calibration(self._qupath_server),
             is_rgb=self._qupath_server.isRGB(),
             dtype=np.dtype(self._qupath_server.getPixelType().toString().lower()),
             channels=tuple([ImageChannel(c.getName(), QuPathServer._unpack_color(c.getColor())) for c in qupath_metadata.getChannels()]),
@@ -110,21 +108,18 @@ class QuPathServer(ImageServer):
             temp_path = tempfile.mkstemp(prefix='qubalab-', suffix='.tif')[1]
 
             self._gateway.entry_point.writeImageRegion(self._qupath_server, request, temp_path)
-            image = QuPathServer._read_bytes(temp_path, self.metadata.is_rgb)
+            image = bytes_to_image(temp_path, self.metadata.is_rgb)
 
             os.remove(temp_path)
         else:
-            format = 'png' if self.is_rgb else "imagej tiff"
+            format = 'png' if self.metadata.is_rgb else "imagej tiff"
 
-            if self._pixel_access == 'bytes':
-                image = QuPathServer._read_bytes(self._gateway.entry_point.getImageBytes(self._qupath_server, request, format), self.metadata.is_rgb)
+            if self._pixel_access == PixelAccess.BYTES:
+                image = bytes_to_image(self._gateway.entry_point.getImageBytes(self._qupath_server, request, format), self.metadata.is_rgb)
             else:
-                image = QuPathServer._read_base64(self._gateway.entry_point.getImageBase64(self._qupath_server, request, format), self.metadata.is_rgb)
+                image = base64_to_image(self._gateway.entry_point.getImageBase64(self._qupath_server, request, format), self.metadata.is_rgb)
 
-        if region.height != image.shape[0] or region.width != image.shape[1]:
-            shape_before = image.shape
-            image = QuPathServer._resize(image, (region.width, region.height), self.resize_method)
-            warnings.warn(f'Block needs to be reshaped from {shape_before} to {image.shape}')
+        image = np.moveaxis(image, -1, 0)    # move channel axis
 
         return image
     
@@ -150,7 +145,7 @@ class QuPathServer(ImageServer):
             return PixelCalibration(
                 PixelLength.create_microns(pixel_calibration.getPixelWidthMicrons()),
                 PixelLength.create_microns(pixel_calibration.getPixelHeightMicrons()),
-                PixelLength.create_microns(pixel_calibration.getZSpacingMicrons()) if pixel_calibration.getZSpacingMicrons() else PixelLength()
+                PixelLength.create_microns(pixel_calibration.getZSpacingMicrons()) if pixel_calibration.hasZSpacingMicrons() else PixelLength()
             )
         else:
             return PixelCalibration()
@@ -162,14 +157,3 @@ class QuPathServer(ImageServer):
         b = rgb & 255
         return r / 255.0, g / 255.0, b / 255.0
     
-    @staticmethod
-    def _read_bytes(byte_array: bytes, is_rgb: bool) -> np.ndarray:
-        if is_rgb:
-            return imageio.v3.imread(byte_array)
-        else:
-            # We can just provide 2D images; using volread move to channels-last
-            return np.moveaxis(imageio.volread(byte_array), 0, -1)
-
-    @staticmethod
-    def _read_base64(data: str, is_rgb: bool) -> np.ndarray:
-        return QuPathServer._read_bytes(base64.b64decode(data), is_rgb)
