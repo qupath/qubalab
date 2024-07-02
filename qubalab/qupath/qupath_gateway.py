@@ -6,6 +6,7 @@ from typing import Union
 import geojson
 from ..images import utils
 from ..objects.image_feature import ImageFeature
+from ..objects.object_type import ObjectType
 from ..objects.geojson import geojson_features_from_string
 
 
@@ -17,18 +18,6 @@ class SnapshotType(Enum):
     """
     QUPATH = 1
     VIEWER = 2
-
-
-class ObjectType(Enum):
-    """
-    Represent an object in QuPath.
-    """
-    ROOT = 1
-    ANNOTATION = 2
-    DETECTION = 3
-    TILE = 4
-    CELL = 5
-    TMA_CORE = 6
 
 
 _default_gateway = None
@@ -176,7 +165,7 @@ def get_objects(
         if converter == 'simple_feature':
             return features
         else:
-            return [ImageFeature(f) for f in features]
+            return [ImageFeature.create_from_feature(f) for f in features]
 
     return path_objects
 
