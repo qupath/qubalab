@@ -6,15 +6,15 @@ from ..res import single_resolution_float_5d
 
 
 def test_uri_to_image():
-    z = 0
-    t = 0
     path = single_resolution_float_5d.get_path()
     image_shape = single_resolution_float_5d.get_shapes()[0]
     expected_image = np.array(
-        [[[single_resolution_float_5d.get_pixel_value(x, y, c, z, t)
-            for c in range(image_shape.c)]
+        [[[[[single_resolution_float_5d.get_pixel_value(x, y, c, z, t)
             for x in range(image_shape.x)]
-            for y in range(image_shape.y)],
+            for y in range(image_shape.y)]
+            for c in range(image_shape.c)]
+            for z in range(image_shape.z)]
+            for t in range(image_shape.t)],
         single_resolution_float_5d.get_dtype()
     )
     

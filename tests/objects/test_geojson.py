@@ -1,4 +1,5 @@
 import geojson
+import math
 from qubalab.objects.geojson import geojson_features_from_string
 
 
@@ -26,4 +27,4 @@ def test_geojson_from_feature_with_NaN_value():
 
     features = geojson_features_from_string(text)
 
-    print(features)
+    assert math.isnan(features.geometry.coordinates[0])

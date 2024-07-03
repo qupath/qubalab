@@ -1,16 +1,19 @@
 import geojson
-from typing import Iterable
+from typing import Iterable, Union
 
 
-def geojson_features_from_string(json_string: str, **kwargs) -> Iterable[geojson.Feature]:
+def geojson_features_from_string(json_string: str, **kwargs) -> Union[Iterable[geojson.Feature], geojson.Feature]:
     """
     Read features from a GeoJSON string.
 
     If the string encodes a feature collection, the features themselves will be extracted.
 
-    :param json_string: a string representing a GeoJSON. NaNs values are allowed
+    NaNs values are allowed. However, converting a returned feature with a NaN value to a string
+    will throw an exception.
+
+    :param json_string: a string representing a GeoJSON
     :param \**kwargs: additional parameters to pass to the geojson loader
-    :returns: a collection of features representing the provided string
+    :returns: a single or a collection of features representing the provided string
     """
     results = _geojson_from_string(json_string, **kwargs)
     if 'features' in results:

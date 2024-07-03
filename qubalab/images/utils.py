@@ -10,7 +10,8 @@ def bytes_to_image(uri: {str, bytes}, is_rgb: bool) -> np.ndarray:
 
     :param uri: an URI pointing to a binary file, or an array of bytes
     :param is_rgb: whether the expected image should have the RGB format
-    :returns: a numpy array with dimensions (y, x, c) representing the image
+    :returns: a numpy array with dimensions (y, x, c) for simple images or
+              (t, z, c, y, x) for complex images representing the image
     """
     return imageio.v3.imread(uri) if is_rgb else imageio.volread(uri)
 
@@ -22,6 +23,7 @@ def base64_to_image(data: str, is_rgb: bool) -> np.ndarray:
 
     :param uri: a text with the Base64 format
     :param is_rgb: whether the expected image should have the RGB format
-    :returns: a numpy array with dimensions (y, x, c) representing the image
+    :returns: a numpy array with dimensions (y, x, c) for simple images or
+              (t, z, c, y, x) for complex images representing the image
     """
     return bytes_to_image(base64.b64decode(data), is_rgb)
