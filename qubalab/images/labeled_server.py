@@ -1,9 +1,13 @@
 import numpy as np
+from typing import Iterable
+import shapely
 from .image_server import ImageServer
 from .wrapped_image_server import WrappedImageServer
 from .metadata.image_server_metadata import ImageServerMetadata
 from .metadata.image_shape import ImageShape
 from .region_2d import Region2D
+from ..objects.image_feature import ImageFeature
+from ..objects.classification import Classification
 
 
 class LabeledImageServer(WrappedImageServer):
@@ -11,7 +15,14 @@ class LabeledImageServer(WrappedImageServer):
     TODO
     """
 
-    def __init__(self, base_server: ImageServer, downsample: float = None, dtype=np.float32):
+    def __init__(
+        self,
+        base_server: ImageServer,
+        features: Iterable[ImageFeature],
+        label_map: dict[Classification, int] = None,
+        downsample: float = None,
+        dtype = np.float32
+    ):
         """
         TODO
         """
@@ -31,6 +42,7 @@ class LabeledImageServer(WrappedImageServer):
             base_server.metadata.is_rgb,    #TODO: check
             dtype
         )
+        self._tree = shapely.STRtree([shapely.geometry.shape(feature) for feature in features if label_map is None or features.classification in label_map])
 
     def close(self):
         pass
@@ -39,4 +51,8 @@ class LabeledImageServer(WrappedImageServer):
         return self._metadata
 
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
-        pass
+        geometries = self._tree.query(region.geometry)
+
+
+def rasterize(features: Iterable[shapely.Geometry]) -> np.ndarray:
+    pass

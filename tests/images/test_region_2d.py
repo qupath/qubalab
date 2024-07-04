@@ -1,4 +1,5 @@
 import pytest
+import shapely
 from qubalab.images.region_2d import Region2D
 
 
@@ -8,6 +9,19 @@ def test_default_values():
     region = Region2D()
 
     assert expected_region == region
+
+
+def test_geometry():
+    x = 4
+    y = 90
+    width = 34
+    height = 5
+    expected_geometry = shapely.box(x, y, x+width, y+height)
+    region = Region2D(x, y, width, height)
+
+    geometry = region.geometry
+
+    assert expected_geometry == geometry
 
 
 def test_downsampled_region_with_same_factor():
