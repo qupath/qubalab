@@ -1,5 +1,5 @@
 from .image_server import ImageServer
-from .metadata.image_server_metadata import ImageServerMetadata
+from .metadata.image_metadata import ImageMetadata
 
 
 class WrappedImageServer(ImageServer):
@@ -31,5 +31,5 @@ class WrappedImageServer(ImageServer):
     def close(self):
         self._base_server.close()
 
-    def _build_metadata(self) -> ImageServerMetadata:
+    def _build_metadata(self) -> ImageMetadata:
         return self._base_server.metadata

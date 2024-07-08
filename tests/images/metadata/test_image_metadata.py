@@ -1,11 +1,11 @@
 from qubalab.images.metadata.image_shape import ImageShape
-from qubalab.images.metadata.image_server_metadata import ImageServerMetadata
+from qubalab.images.metadata.image_metadata import ImageMetadata
 from qubalab.images.metadata.image_channel import ImageChannel
 
 
 def test_shape():
     expected_shape = ImageShape(128, 100)
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (
@@ -24,7 +24,7 @@ def test_shape():
 
 def test_width():
     expected_width = 128
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (
@@ -43,7 +43,7 @@ def test_width():
 
 def test_height():
     expected_height = 100
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (
@@ -62,7 +62,7 @@ def test_height():
 
 def test_n_channels():
     expected_n_channels = 5
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (
@@ -81,7 +81,7 @@ def test_n_channels():
 
 def test_n_timepoints():
     expected_n_timepoints = 50
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (
@@ -100,7 +100,7 @@ def test_n_timepoints():
 
 def test_n_z_slices():
     expected_n_z_slices = 10
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (
@@ -119,7 +119,7 @@ def test_n_z_slices():
 
 def test_n_resolutions():
     expected_n_resolutions = 3
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (
@@ -138,7 +138,7 @@ def test_n_resolutions():
 
 def test_downsamples():
     expected_downsamples = (1, 2, 4)
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (
@@ -157,7 +157,7 @@ def test_downsamples():
 
 def test_channels_when_provided():
     expected_channels = (ImageChannel("Channel 1", (1, 1, 1)), ImageChannel("Channel 2", (0, 0, 0)))
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (
@@ -177,7 +177,7 @@ def test_channels_when_provided():
 
 def test_number_of_channels_when_not_provided_and_RGB():
     expected_n_channels = 3
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (
@@ -196,7 +196,7 @@ def test_number_of_channels_when_not_provided_and_RGB():
 
 def test_number_of_channels_when_not_provided_and_not_RGB():
     expected_n_channels = 5
-    metadata = ImageServerMetadata(
+    metadata = ImageMetadata(
         "",
         "",
         (

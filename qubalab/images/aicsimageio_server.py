@@ -5,10 +5,10 @@ from pathlib import Path
 from aicsimageio import AICSImage
 from dataclasses import astuple
 from .image_server import ImageServer
-from .metadata.image_server_metadata import ImageServerMetadata
+from .metadata.image_metadata import ImageMetadata
 from .metadata.pixel_calibration import PixelCalibration, PixelLength
 from .metadata.image_shape import ImageShape
-from .metadata.region_2d import Region2D
+from .region_2d import Region2D
 
 
 class AICSImageIoServer(ImageServer):
@@ -54,10 +54,10 @@ class AICSImageIoServer(ImageServer):
         return self._reader.get_image_dask_data(axes)
 
     def close(self):
-        self._reader.close()
+        pass
 
-    def _build_metadata(self) -> ImageServerMetadata:
-        return ImageServerMetadata(
+    def _build_metadata(self) -> ImageMetadata:
+        return ImageMetadata(
             self._path,
             Path(self._path).name,
             self._get_shapes(self._reader, self._scene) if self._detect_resolutions else (self._get_scene_shape(self._reader, self._reader.scenes[self._scene]),),

@@ -1,6 +1,6 @@
 import numpy as np
 from qubalab.images.aicsimageio_server import AICSImageIoServer
-from qubalab.images.metadata.region_2d import Region2D
+from qubalab.images.region_2d import Region2D
 from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
 from ..res import multi_resolution_uint8_3channels, single_resolution_float_5d, single_resolution_rgb_image
 
@@ -12,6 +12,8 @@ def test_uint8_3channels_image_name():
 
     assert name == multi_resolution_uint8_3channels.get_name()
 
+    aicsimageio_server.close()
+
 
 def test_uint8_3channels_image_shapes():
     aicsimageio_server = AICSImageIoServer(multi_resolution_uint8_3channels.get_path())
@@ -19,6 +21,8 @@ def test_uint8_3channels_image_shapes():
     shapes = aicsimageio_server.metadata.shapes
 
     assert shapes == (multi_resolution_uint8_3channels.get_shapes()[0], )      # The AICSImage library does not properly support pyramids
+
+    aicsimageio_server.close()
 
 
 def test_uint8_3channels_image_pixel_calibration():
@@ -31,6 +35,8 @@ def test_uint8_3channels_image_pixel_calibration():
         PixelLength(multi_resolution_uint8_3channels.get_pixel_size_x_y_in_micrometers())
     )
 
+    aicsimageio_server.close()
+
 
 def test_uint8_3channels_image_is_rgb():
     aicsimageio_server = AICSImageIoServer(multi_resolution_uint8_3channels.get_path())
@@ -38,6 +44,8 @@ def test_uint8_3channels_image_is_rgb():
     is_rgb = aicsimageio_server.metadata.is_rgb
 
     assert is_rgb
+
+    aicsimageio_server.close()
 
 
 def test_uint8_3channels_image_dtype():
@@ -47,6 +55,8 @@ def test_uint8_3channels_image_dtype():
 
     assert dtype == multi_resolution_uint8_3channels.get_dtype()
 
+    aicsimageio_server.close()
+
 
 def test_uint8_3channels_image_downsamples():
     aicsimageio_server = AICSImageIoServer(multi_resolution_uint8_3channels.get_path())
@@ -54,6 +64,8 @@ def test_uint8_3channels_image_downsamples():
     downsamples = aicsimageio_server.metadata.downsamples
 
     assert downsamples == (multi_resolution_uint8_3channels.get_downsamples()[0], )      # The AICSImage library does not properly support pyramids
+
+    aicsimageio_server.close()
 
 
 def test_read_uint8_3channels_image():
@@ -76,6 +88,8 @@ def test_read_uint8_3channels_image():
 
     np.testing.assert_array_equal(image, expected_pixels)
 
+    aicsimageio_server.close()
+
 
 def test_read_uint8_3channels_image_with_dask():
     level = 0
@@ -94,6 +108,8 @@ def test_read_uint8_3channels_image_with_dask():
 
     np.testing.assert_array_equal(image, expected_pixels)
 
+    aicsimageio_server.close()
+
 
 def test_float_5d_image_name():
     aicsimageio_server = AICSImageIoServer(single_resolution_float_5d.get_path())
@@ -102,6 +118,8 @@ def test_float_5d_image_name():
 
     assert name == single_resolution_float_5d.get_name()
 
+    aicsimageio_server.close()
+
 
 def test_float_5d_image_shapes():
     aicsimageio_server = AICSImageIoServer(single_resolution_float_5d.get_path())
@@ -109,6 +127,8 @@ def test_float_5d_image_shapes():
     shapes = aicsimageio_server.metadata.shapes
 
     assert shapes == single_resolution_float_5d.get_shapes()
+
+    aicsimageio_server.close()
 
 
 def test_float_5d_image_pixel_calibration():
@@ -121,6 +141,8 @@ def test_float_5d_image_pixel_calibration():
         PixelLength(single_resolution_float_5d.get_pixel_size_x_y_in_micrometers())
     )
 
+    aicsimageio_server.close()
+
 
 def test_float_5d_image_is_not_rgb():
     aicsimageio_server = AICSImageIoServer(single_resolution_float_5d.get_path())
@@ -128,6 +150,8 @@ def test_float_5d_image_is_not_rgb():
     is_rgb = aicsimageio_server.metadata.is_rgb
 
     assert not(is_rgb)
+
+    aicsimageio_server.close()
 
 
 def test_float_5d_image_dtype():
@@ -137,6 +161,8 @@ def test_float_5d_image_dtype():
 
     assert dtype == single_resolution_float_5d.get_dtype()
 
+    aicsimageio_server.close()
+
 
 def test_float_5d_image_downsamples():
     aicsimageio_server = AICSImageIoServer(single_resolution_float_5d.get_path())
@@ -144,6 +170,8 @@ def test_float_5d_image_downsamples():
     downsamples = aicsimageio_server.metadata.downsamples
 
     assert downsamples == single_resolution_float_5d.get_downsamples()
+
+    aicsimageio_server.close()
 
 
 def test_read_float_5d_image():
@@ -166,6 +194,8 @@ def test_read_float_5d_image():
 
     np.testing.assert_array_equal(image, expected_pixels)
 
+    aicsimageio_server.close()
+
 
 def test_read_float_5d_image_with_dask():
     full_resolution = single_resolution_float_5d.get_shapes()[0]
@@ -184,6 +214,8 @@ def test_read_float_5d_image_with_dask():
 
     np.testing.assert_array_equal(image, expected_pixels)
 
+    aicsimageio_server.close()
+
 
 def test_rgb_image_name():
     aicsimageio_server = AICSImageIoServer(single_resolution_rgb_image.get_path())
@@ -192,6 +224,8 @@ def test_rgb_image_name():
 
     assert name == single_resolution_rgb_image.get_name()
 
+    aicsimageio_server.close()
+
 
 def test_rgb_image_shapes():
     aicsimageio_server = AICSImageIoServer(single_resolution_rgb_image.get_path())
@@ -199,6 +233,8 @@ def test_rgb_image_shapes():
     shapes = aicsimageio_server.metadata.shapes
 
     assert shapes == single_resolution_rgb_image.get_shapes()
+
+    aicsimageio_server.close()
 
 
 def test_rgb_image_pixel_calibration():
@@ -211,6 +247,8 @@ def test_rgb_image_pixel_calibration():
         PixelLength(single_resolution_rgb_image.get_pixel_size_x_y_in_micrometers())
     )
 
+    aicsimageio_server.close()
+
 
 def test_rgb_image_is_rgb():
     aicsimageio_server = AICSImageIoServer(single_resolution_rgb_image.get_path())
@@ -218,6 +256,8 @@ def test_rgb_image_is_rgb():
     is_rgb = aicsimageio_server.metadata.is_rgb
 
     assert is_rgb
+
+    aicsimageio_server.close()
 
 
 def test_rgb_image_dtype():
@@ -227,6 +267,8 @@ def test_rgb_image_dtype():
 
     assert dtype == single_resolution_rgb_image.get_dtype()
 
+    aicsimageio_server.close()
+
 
 def test_rgb_image_downsamples():
     aicsimageio_server = AICSImageIoServer(single_resolution_rgb_image.get_path())
@@ -234,6 +276,8 @@ def test_rgb_image_downsamples():
     downsamples = aicsimageio_server.metadata.downsamples
 
     assert downsamples == single_resolution_rgb_image.get_downsamples()
+
+    aicsimageio_server.close()
 
 
 def test_read_rgb_image():
@@ -254,6 +298,8 @@ def test_read_rgb_image():
 
     np.testing.assert_array_equal(image, expected_pixels)
 
+    aicsimageio_server.close()
+
 
 def test_read_rgb_image_with_dask():
     full_resolution = single_resolution_rgb_image.get_shapes()[0]
@@ -269,3 +315,5 @@ def test_read_rgb_image_with_dask():
     image = aicsimageio_server.level_to_dask(0).compute()
 
     np.testing.assert_array_equal(image, expected_pixels)
+    
+    aicsimageio_server.close()

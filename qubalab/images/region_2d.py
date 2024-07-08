@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import shapely
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,13 @@ class Region2D:
     height: int = -1
     z: int = 0
     t: int = 0
+
+    @property
+    def geometry(self) -> shapely.Geometry:
+        """
+        A shapely geometry describing the x/y coordinates of the region.
+        """
+        return shapely.box(self.x, self.y, self.x+self.width, self.y+self.height)
 
     def scale_region(self, scale_factor: float) -> Region2D:
         """

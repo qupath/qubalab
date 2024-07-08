@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import logging
 import math
 import numpy as np
@@ -7,28 +6,42 @@ from .image_shape import ImageShape
 from .pixel_calibration import PixelCalibration
 
 
-@dataclass
-class ImageServerMetadata:
+class ImageMetadata:
     """
-    Simple data class to store core metadata for a pyramidal image.
+    Simple class to store core metadata for a pyramidal image.
+    """
 
-    :param path: the local path to the image
-    :param name: the image name
-    :param shapes: the image shape, for each resolution of the image
-    :param pixel_calibration: the pixel calibration information of the image
-    :param is_rgb: whether pixels of the image are stored with the RGB format
-    :param dtype: the type of the pixel values
-    :param _channels: the channels of the image (optional)
-    :param _downsamples: the downsamples of the image (optional)
-    """
-    path: str
-    name: str
-    shapes: tuple[ImageShape, ...]
-    pixel_calibration: PixelCalibration
-    is_rgb: bool
-    dtype: np.dtype
-    _channels: tuple[ImageChannel, ...] = None
-    _downsamples = None
+    def __init__(
+        self,
+        path: str,
+        name: str,
+        shapes: tuple[ImageShape, ...],
+        pixel_calibration: PixelCalibration,
+        is_rgb: bool,
+        dtype: np.dtype,
+        channels: tuple[ImageChannel, ...] = None,
+        downsamples = None
+    ):
+        """
+        Create the metadata.
+
+        :param path: the local path to the image
+        :param name: the image name
+        :param shapes: the image shape, for each resolution of the image
+        :param pixel_calibration: the pixel calibration information of the image
+        :param is_rgb: whether pixels of the image are stored with the RGB format
+        :param dtype: the type of the pixel values
+        :param _channels: the channels of the image (optional)
+        :param _downsamples: the downsamples of the image (optional)
+        """
+        self.path = path
+        self.name = name
+        self.shapes = shapes
+        self.pixel_calibration = pixel_calibration
+        self.is_rgb = is_rgb
+        self.dtype = dtype
+        self._channels = channels
+        self._downsamples = downsamples
 
     _DEFAULT_CHANNEL_SINGLE = (
         ImageChannel(name='Single channel', color=(1, 1, 1)),
@@ -105,7 +118,7 @@ class ImageServerMetadata:
         """
         The downsamples of the image.
         """
-        if not self._downsamples:
+        if self._downsamples is None:
             self._downsamples = tuple(self._estimate_downsample(self.shape, s) for s in self.shapes)
         return self._downsamples
 
@@ -114,7 +127,7 @@ class ImageServerMetadata:
         """
         The channels of the image.
         """
-        if not self._channels:
+        if self._channels is None:
             if self.is_rgb:
                 self._channels = self._DEFAULT_CHANNEL_RGB
             else:
@@ -130,6 +143,15 @@ class ImageServerMetadata:
                         ) for ii in range(self.n_channels)
                     ]
         return self._channels
+    
+    def __eq__(self, other):
+        if isinstance(other, ImageMetadata):
+            return self.path == other.path and \
+                self.path == other.path and self.name == other.name and self.shapes == other.shapes \
+                and self.pixel_calibration == other.pixel_calibration and self.is_rgb == other.is_rgb \
+                and self.dtype == other.dtype and self.channels == other.channels and self.downsamples == other.downsamples
+        else:
+            return False
     
     def _estimate_downsample(self, higher_resolution_shape: ImageShape, lower_resolution_shape: ImageShape) -> float:
         """

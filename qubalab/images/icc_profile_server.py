@@ -6,7 +6,7 @@ from typing import Union
 from PIL import Image, ImageCms
 from .wrapped_image_server import WrappedImageServer
 from .image_server import ImageServer
-from .metadata.region_2d import Region2D
+from .region_2d import Region2D
 
 
 class IccProfileServer(WrappedImageServer):
