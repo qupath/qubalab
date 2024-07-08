@@ -1,12 +1,12 @@
 import numpy as np
 from PIL import Image
-from qubalab.images.image_server import ImageServerMetadata, ImageServer
+from qubalab.images.image_server import ImageMetadata, ImageServer
 from qubalab.images.metadata.image_shape import ImageShape
 from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
 from qubalab.images.region_2d import Region2D
 
 
-sample_RGB_metadata = ImageServerMetadata(
+sample_RGB_metadata = ImageMetadata(
     "/path/to/img.tiff",
     "Image name",
     (
@@ -32,7 +32,7 @@ class SampleRGBServer(ImageServer):
     def close(self):
         pass
 
-    def _build_metadata(self) -> ImageServerMetadata:
+    def _build_metadata(self) -> ImageMetadata:
         return sample_RGB_metadata
 
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
@@ -40,7 +40,7 @@ class SampleRGBServer(ImageServer):
         return image[:, region.y:region.y+region.height, region.x:region.x+region.width]
 
 
-sample_float32_metadata = ImageServerMetadata(
+sample_float32_metadata = ImageMetadata(
     "/path/to/img.tiff",
     "Image name",
     (
@@ -65,10 +65,10 @@ sample_float32_pixels = [[[[[[
     for shape in sample_float32_metadata.shapes
 ]
 class SampleFloat32Server(ImageServer):
-    def close():
+    def close(self):
         pass
 
-    def _build_metadata(self) -> ImageServerMetadata:
+    def _build_metadata(self) -> ImageMetadata:
         return sample_float32_metadata
 
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
@@ -83,6 +83,8 @@ def test_metadata():
     metadata = sample_RGB_server.metadata
 
     assert expected_metadata == metadata
+    
+    sample_RGB_server.close()
 
 
 def test_full_resolution_RGB_image_with_region():
@@ -96,6 +98,8 @@ def test_full_resolution_RGB_image_with_region():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_RGB_server.close()
 
 
 def test_full_resolution_RGB_image_with_region_tuple():
@@ -109,6 +113,8 @@ def test_full_resolution_RGB_image_with_region_tuple():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_RGB_server.close()
 
 
 def test_full_resolution_RGB_image_with_tuple():
@@ -125,6 +131,8 @@ def test_full_resolution_RGB_image_with_tuple():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_RGB_server.close()
 
 
 def test_full_resolution_RGB_image_with_dask():
@@ -135,6 +143,8 @@ def test_full_resolution_RGB_image_with_dask():
     image = sample_RGB_server.level_to_dask(level).compute()
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_RGB_server.close()
 
 
 def test_lowest_resolution_RGB_image():
@@ -148,6 +158,8 @@ def test_lowest_resolution_RGB_image():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_RGB_server.close()
 
 
 def test_lowest_resolution_RGB_image_with_dask():
@@ -158,6 +170,8 @@ def test_lowest_resolution_RGB_image_with_dask():
     image = sample_RGB_server.level_to_dask(level).compute()
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_RGB_server.close()
 
 
 def test_tile_of_full_resolution_RGB_image():
@@ -175,6 +189,8 @@ def test_tile_of_full_resolution_RGB_image():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_RGB_server.close()
 
 
 def test_downsampled_RGB_image():
@@ -188,6 +204,8 @@ def test_downsampled_RGB_image():
     pixels = sample_RGB_server.read_region(downsample, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
 
     np.testing.assert_array_equal(pixels[c, ...], expected_pixels)
+    
+    sample_RGB_server.close()
 
 
 def test_scaled_RGB_image():
@@ -201,6 +219,8 @@ def test_scaled_RGB_image():
     pixels = sample_RGB_server.read_region(downsample, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
 
     np.testing.assert_array_equal(pixels[c, ...], expected_pixels)
+    
+    sample_RGB_server.close()
 
 
 def test_downsampled_RGB_image_with_dask():
@@ -214,6 +234,8 @@ def test_downsampled_RGB_image_with_dask():
     pixels = sample_RGB_server.read_region(downsample, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
 
     np.testing.assert_array_equal(pixels[c, ...], expected_pixels)
+    
+    sample_RGB_server.close()
 
 
 def test_downsampled_RGB_image_with_dask():
@@ -227,6 +249,8 @@ def test_downsampled_RGB_image_with_dask():
     pixels = sample_RGB_server.to_dask(downsample).compute()
 
     np.testing.assert_allclose(pixels[c, ...], expected_pixels, atol=2)
+    
+    sample_RGB_server.close()
 
 
 def test_full_resolution_float32_image_with_region():
@@ -242,6 +266,8 @@ def test_full_resolution_float32_image_with_region():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_float32_server.close()
 
 
 def test_full_resolution_float32_image_with_region_tuple():
@@ -257,6 +283,8 @@ def test_full_resolution_float32_image_with_region_tuple():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_float32_server.close()
 
 
 def test_full_resolution_float32_image_with_tuple():
@@ -277,6 +305,8 @@ def test_full_resolution_float32_image_with_tuple():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_float32_server.close()
 
 
 def test_full_resolution_float32_image_with_dask():
@@ -287,6 +317,8 @@ def test_full_resolution_float32_image_with_dask():
     image = sample_float32_server.level_to_dask(level).compute()
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_float32_server.close()
 
 
 def test_lowest_resolution_float32_image():
@@ -302,6 +334,8 @@ def test_lowest_resolution_float32_image():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_float32_server.close()
 
 
 def test_lowest_resolution_float32_image_with_dask():
@@ -312,6 +346,8 @@ def test_lowest_resolution_float32_image_with_dask():
     image = sample_float32_server.level_to_dask(level).compute()
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_float32_server.close()
 
 
 def test_tile_of_full_resolution_float32_image():
@@ -331,6 +367,8 @@ def test_tile_of_full_resolution_float32_image():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    sample_float32_server.close()
 
 
 def test_downsampled_float32_image():
@@ -349,6 +387,8 @@ def test_downsampled_float32_image():
     )
 
     np.testing.assert_array_equal(pixels[c, ...], expected_pixels)
+    
+    sample_float32_server.close()
 
 
 def test_scaled_float32_image():
@@ -367,6 +407,8 @@ def test_scaled_float32_image():
     )
 
     np.testing.assert_array_equal(pixels[c, ...], expected_pixels)
+    
+    sample_float32_server.close()
 
 
 def test_downsampled_float32_image_with_dask():
@@ -382,3 +424,5 @@ def test_downsampled_float32_image_with_dask():
     pixels = sample_float32_server.to_dask(downsample).compute()
 
     np.testing.assert_allclose(pixels[t, c, z, ...], expected_pixels, atol=2)
+    
+    sample_float32_server.close()

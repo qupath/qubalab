@@ -1,13 +1,13 @@
 import numpy as np
 from PIL import ImageCms
-from qubalab.images.image_server import ImageServerMetadata, ImageServer
+from qubalab.images.image_server import ImageMetadata, ImageServer
 from qubalab.images.icc_profile_server import IccProfileServer
 from qubalab.images.metadata.image_shape import ImageShape
 from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
 from qubalab.images.region_2d import Region2D
 
 
-sample_RGB_metadata = ImageServerMetadata(
+sample_RGB_metadata = ImageMetadata(
     "/path/to/img.tiff",
     "Image name",
     (
@@ -34,7 +34,7 @@ class SampleRGBServer(ImageServer):
     def close(self):
         pass
 
-    def _build_metadata(self) -> ImageServerMetadata:
+    def _build_metadata(self) -> ImageMetadata:
         return sample_RGB_metadata
 
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
@@ -48,6 +48,8 @@ def test_transform_when_icc_profile_not_provided():
     transform = icc_profile_server.icc_transform
 
     assert transform == None
+    
+    icc_profile_server.close()
 
 
 def test_region_of_pixels_when_icc_profile_not_provided():
@@ -57,6 +59,8 @@ def test_region_of_pixels_when_icc_profile_not_provided():
     image = icc_profile_server.read_region(1, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
 
     np.testing.assert_array_equal(image, sample_RGB_pixels)
+    
+    icc_profile_server.close()
 
 
 def test_transform_when_icc_profile_provided():
@@ -66,6 +70,8 @@ def test_transform_when_icc_profile_provided():
     transform = icc_profile_server.icc_transform
 
     assert transform != None
+    
+    icc_profile_server.close()
 
 
 def test_region_of_pixels_when_icc_profile_provided():
@@ -75,3 +81,5 @@ def test_region_of_pixels_when_icc_profile_provided():
     image = icc_profile_server.read_region(1, Region2D(x=0, y=0, width=sample_RGB_metadata.width, height=sample_RGB_metadata.height))
 
     np.testing.assert_array_equal(image, sample_RGB_pixels)
+    
+    icc_profile_server.close()

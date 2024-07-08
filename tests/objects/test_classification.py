@@ -3,7 +3,7 @@ from qubalab.objects.classification import Classification
 
 def test_name():
     expected_name = "name"
-    classification = Classification(expected_name, None)
+    classification = Classification(expected_name)
 
     name = classification.name
 

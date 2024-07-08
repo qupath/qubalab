@@ -29,7 +29,6 @@ class Region2D:
         """
         return shapely.box(self.x, self.y, self.x+self.width, self.y+self.height)
 
-
     def scale_region(self, scale_factor: float) -> Region2D:
         """
         Scale the bounding box of this region on the x and y axis.

@@ -1,6 +1,6 @@
 import numpy as np
 import dask.array as da
-from qubalab.images.image_server import ImageServerMetadata, ImageServer
+from qubalab.images.image_server import ImageMetadata, ImageServer
 from qubalab.images.wrapped_image_server import WrappedImageServer
 from qubalab.images.metadata.image_shape import ImageShape
 from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
@@ -13,8 +13,8 @@ class SampleServer(ImageServer):
     def close(self):
         self.isClosed = True
 
-    def _build_metadata(self) -> ImageServerMetadata:
-        return ImageServerMetadata(
+    def _build_metadata(self) -> ImageMetadata:
+        return ImageMetadata(
             "/path/to/img.tiff",
             "Image name",
             (
@@ -46,6 +46,8 @@ def test_wrapped_server():
     sample_server = wrapped_server.base_server
 
     assert sample_server == expected_sample_server
+    
+    wrapped_server.close()
 
 
 def test_sample_server_closed():
@@ -65,3 +67,5 @@ def test_metadata():
     metadata = wrapped_server.metadata
 
     assert expected_metadata == metadata
+    
+    wrapped_server.close()

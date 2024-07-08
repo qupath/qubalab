@@ -6,7 +6,7 @@ from .image_shape import ImageShape
 from .pixel_calibration import PixelCalibration
 
 
-class ImageServerMetadata:
+class ImageMetadata:
     """
     Simple class to store core metadata for a pyramidal image.
     """
@@ -145,7 +145,7 @@ class ImageServerMetadata:
         return self._channels
     
     def __eq__(self, other):
-        if isinstance(other, ImageServerMetadata):
+        if isinstance(other, ImageMetadata):
             return self.path == other.path and \
                 self.path == other.path and self.name == other.name and self.shapes == other.shapes \
                 and self.pixel_calibration == other.pixel_calibration and self.is_rgb == other.is_rgb \

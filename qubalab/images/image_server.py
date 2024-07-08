@@ -7,7 +7,7 @@ from typing import Union, Iterable
 from abc import ABC, abstractmethod
 from PIL import Image
 from .region_2d import Region2D
-from .metadata.image_server_metadata import ImageServerMetadata
+from .metadata.image_metadata import ImageMetadata
 
 
 class ImageServer(ABC):
@@ -28,7 +28,7 @@ class ImageServer(ABC):
         self._resize_method = resize_method
 
     @property
-    def metadata(self) -> ImageServerMetadata:
+    def metadata(self) -> ImageMetadata:
         """
         The image metadata.
         """
@@ -216,7 +216,7 @@ class ImageServer(ABC):
         pass
 
     @abstractmethod
-    def _build_metadata(self) -> ImageServerMetadata:
+    def _build_metadata(self) -> ImageMetadata:
         """
         Create metadata for the current image.
 

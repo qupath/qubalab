@@ -9,7 +9,7 @@ except ImportError as e:
     warnings.warn(f'Unable to import OpenSlide, will try TiffSlide instead')
     import tiffslide as openslide
 from .image_server import ImageServer
-from .metadata.image_server_metadata import ImageServerMetadata
+from .metadata.image_metadata import ImageMetadata
 from .metadata.pixel_calibration import PixelCalibration, PixelLength
 from .metadata.image_shape import ImageShape
 from .region_2d import Region2D
@@ -45,7 +45,7 @@ class OpenSlideServer(ImageServer):
     def close(self):
         self._reader.close()
 
-    def _build_metadata(self) -> ImageServerMetadata:
+    def _build_metadata(self) -> ImageMetadata:
         n_channels = OpenSlideServer._get_n_channels(self._single_channel, self._strip_alpha)
 
         full_bounds = (0, 0) + self._reader.dimensions
@@ -62,7 +62,7 @@ class OpenSlideServer(ImageServer):
             self._bounds = full_bounds
             shapes = tuple(ImageShape(x=d[0], y=d[1], c=n_channels) for d in self._reader.level_dimensions)
 
-        return ImageServerMetadata(
+        return ImageMetadata(
             self._path,
             Path(self._path).name,
             shapes,

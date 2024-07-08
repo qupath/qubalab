@@ -5,7 +5,7 @@ from enum import Enum
 from py4j.java_gateway import JavaGateway, JavaObject
 from urllib.parse import urlparse, unquote
 from .image_server import ImageServer
-from .metadata.image_server_metadata import ImageServerMetadata
+from .metadata.image_metadata import ImageMetadata
 from .metadata.image_shape import ImageShape
 from .metadata.image_channel import ImageChannel
 from .metadata.pixel_calibration import PixelCalibration, PixelLength
@@ -62,10 +62,10 @@ class QuPathServer(ImageServer):
     def close(self):
         pass
 
-    def _build_metadata(self) -> ImageServerMetadata:
+    def _build_metadata(self) -> ImageMetadata:
         qupath_metadata = self._qupath_server.getMetadata()
 
-        return ImageServerMetadata(
+        return ImageMetadata(
             path=QuPathServer._find_qupath_server_path(self._qupath_server),
             name=qupath_metadata.getName(),
             shapes=tuple([

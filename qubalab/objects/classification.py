@@ -7,7 +7,7 @@ class Classification(object):
     Simple class to store the name, color and parent of a classification.
     """
 
-    def __init__(self, name: str, color: tuple[int, int, int], parent: Classification = None):
+    def __init__(self, name: str, color: tuple[int, int, int] = None, parent: Classification = None):
         """
         Create the classification.
 
@@ -34,7 +34,10 @@ class Classification(object):
         return self._color
 
     def __str__(self):
+        return f"Classification {self._name} of color {self._color}"
+        
+    def __repr__(self):
         if self._parent is None:
-            return self._name
+            return f"Classification('{self._name}', {self._color})"
         else:
-            return self._parent.__str__() + ': ' + self._name
+            return f"Classification('{self._name}', {self._color}, {repr(self._parent)})"

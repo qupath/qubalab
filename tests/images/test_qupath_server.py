@@ -5,12 +5,12 @@ import base64
 from unittest.mock import Mock
 from qubalab.images.qupath_server import QuPathServer, PixelAccess
 from qubalab.images.region_2d import Region2D
-from qubalab.images.metadata.image_server_metadata import ImageServerMetadata
+from qubalab.images.metadata.image_metadata import ImageMetadata
 from qubalab.images.metadata.image_shape import ImageShape
 from qubalab.images.metadata.pixel_calibration import PixelCalibration, PixelLength
 
 
-sample_RGB_metadata = ImageServerMetadata(
+sample_RGB_metadata = ImageMetadata(
     "/path/to/img.tiff",
     "Image name",
     (
@@ -34,7 +34,7 @@ sample_RGB_pixels = [[[[
 ]
 
 
-sample_float32_metadata = ImageServerMetadata(
+sample_float32_metadata = ImageMetadata(
     "/path/to/img.tiff",
     "Image name",
     (
@@ -60,7 +60,7 @@ sample_float32_pixels = [[[[[[
 ]
 
 
-def _create_qupath_metadata(metadata: ImageServerMetadata):
+def _create_qupath_metadata(metadata: ImageMetadata):
     qupath_metadata = Mock()
     qupath_metadata.getName.return_value = metadata.name
 
@@ -86,7 +86,7 @@ def _create_qupath_metadata(metadata: ImageServerMetadata):
     return qupath_metadata
 
 
-def _create_qupath_server(metadata: ImageServerMetadata):
+def _create_qupath_server(metadata: ImageMetadata):
     qupath_server = Mock()
     qupath_server.getMetadata.return_value = _create_qupath_metadata(metadata)
     qupath_server.getURIs.return_value = ("file://" + metadata.path,)
@@ -115,7 +115,7 @@ def _create_qupath_server(metadata: ImageServerMetadata):
     return qupath_server
 
 
-def _create_gateway(metadata: ImageServerMetadata, pixels: list):
+def _create_gateway(metadata: ImageMetadata, pixels: list):
     def _create_region_request(path, downsample, x, y, width, height, z, t):
         return {
             "downsample": downsample,
@@ -169,6 +169,8 @@ def test_RGB_metadata():
     metadata = server.metadata
 
     assert metadata == metadata
+    
+    server.close()
 
 
 def test_RGB_full_resolution_with_temp_file():
@@ -184,6 +186,8 @@ def test_RGB_full_resolution_with_temp_file():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_RGB_lowest_resolution_with_temp_file():
@@ -199,6 +203,8 @@ def test_RGB_lowest_resolution_with_temp_file():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_RGB_tile_of_full_resolution_with_temp_file():
@@ -218,6 +224,8 @@ def test_RGB_tile_of_full_resolution_with_temp_file():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_RGB_full_resolution_with_bytes():
@@ -233,6 +241,8 @@ def test_RGB_full_resolution_with_bytes():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_RGB_lowest_resolution_with_bytes():
@@ -248,6 +258,8 @@ def test_RGB_lowest_resolution_with_bytes():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_RGB_tile_of_full_resolution_with_bytes():
@@ -267,6 +279,8 @@ def test_RGB_tile_of_full_resolution_with_bytes():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_RGB_full_resolution_with_base64():
@@ -282,6 +296,8 @@ def test_RGB_full_resolution_with_base64():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_RGB_lowest_resolution_with_base64():
@@ -297,6 +313,8 @@ def test_RGB_lowest_resolution_with_base64():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_RGB_tile_of_full_resolution_with_base64():
@@ -316,6 +334,8 @@ def test_RGB_tile_of_full_resolution_with_base64():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_float32_metadata():
@@ -327,6 +347,8 @@ def test_float32_metadata():
     metadata = server.metadata
 
     assert metadata == metadata
+    
+    server.close()
 
 
 def test_float32_full_resolution_with_temp_file():
@@ -344,6 +366,8 @@ def test_float32_full_resolution_with_temp_file():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_float32_lowest_resolution_with_temp_file():
@@ -361,6 +385,8 @@ def test_float32_lowest_resolution_with_temp_file():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_float32_tile_of_full_resolution_with_temp_file():
@@ -382,6 +408,8 @@ def test_float32_tile_of_full_resolution_with_temp_file():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_float32_full_resolution_with_bytes():
@@ -399,6 +427,8 @@ def test_float32_full_resolution_with_bytes():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_float32_lowest_resolution_with_bytes():
@@ -416,6 +446,8 @@ def test_float32_lowest_resolution_with_bytes():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_float32_tile_of_full_resolution_with_bytes():
@@ -437,6 +469,8 @@ def test_float32_tile_of_full_resolution_with_bytes():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_float32_full_resolution_with_base64():
@@ -454,6 +488,8 @@ def test_float32_full_resolution_with_base64():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_float32_lowest_resolution_with_base64():
@@ -471,6 +507,8 @@ def test_float32_lowest_resolution_with_base64():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
 
 
 def test_float32_tile_of_full_resolution_with_base64():
@@ -492,3 +530,5 @@ def test_float32_tile_of_full_resolution_with_base64():
     )
 
     np.testing.assert_array_equal(image, expected_image)
+    
+    server.close()
