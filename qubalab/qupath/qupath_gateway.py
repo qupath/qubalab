@@ -23,7 +23,7 @@ class SnapshotType(Enum):
 _default_gateway = None
 
 
-def create_gateway(auto_convert=True, auth_token=None, set_as_default=True, **kwargs) -> JavaGateway:
+def create_gateway(auto_convert=True, auth_token=None, port=25333, set_as_default=True, **kwargs) -> JavaGateway:
     """
     Create a new JavaGateway to communicate with QuPath.
 
@@ -31,15 +31,21 @@ def create_gateway(auto_convert=True, auth_token=None, set_as_default=True, **kw
 
     :param auto_convert: if True, the gateway will try to automatically convert Python objects like sequences and maps to Java Objects
     :param auth_token: the authentication token to use to connect. Can be None if no authentication is used
+    :param port: the port to use to connect
     :param set_as_default: whether to set the created gateway as the default gateway
-    :param \**kwargs: additional arguments to give to the JavaGateway constructor
+    :param kwargs: additional arguments to give to the JavaGateway constructor
     :returns: the created gateway
     :raises RuntimeError: if the connection to QuPath couldn't be established
     """
     if auth_token is None:
-        gateway = JavaGateway(auto_convert=auto_convert, **kwargs)
+        gateway_parameters = GatewayParameters(port=port)
     else:
-        gateway = JavaGateway(auto_convert=auto_convert, gateway_parameters=GatewayParameters(auth_token=auth_token), **kwargs)
+        gateway_parameters = GatewayParameters(auth_token=auth_token, port=port)
+    gateway = JavaGateway(
+        auto_convert=auto_convert,
+        gateway_parameters=gateway_parameters,
+        **kwargs
+    )
 
     try:
         # This will fail if QuPath is not running with a Py4J gateway
@@ -74,6 +80,7 @@ def get_default_gateway() -> JavaGateway:
     if _default_gateway is None:
         _default_gateway = create_gateway()
     return _default_gateway
+
 
 def get_current_image_data(gateway: JavaGateway = None) -> JavaObject:
     """
