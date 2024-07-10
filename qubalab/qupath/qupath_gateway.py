@@ -77,6 +77,7 @@ def get_default_gateway() -> JavaGateway:
 
     :returns: the default gateway
     """
+    global _default_gateway
     if _default_gateway is None:
         _default_gateway = create_gateway()
     return _default_gateway
@@ -132,17 +133,17 @@ def get_objects(
     gateway: JavaGateway = None,
     object_type: ObjectType = None,
     converter: str = None
-) -> list[geojson.Feature]:
+) -> Union[list[geojson.Feature], list[ImageFeature], list[JavaObject]]:
     """
     Get the objects (e.g. detections, annotations) of the current or specified image in QuPath.
 
     :param image_data: the image_data to retrieve objects from. Can be None to use the current ImageData opened in QuPath
     :param gateway: the gateway to use. Can be None to use the default gateway
     :param object_type: the type of object to get. Can be None to get all objects except the root
-    :param converter: Can be 'geojson' to get an extended GeoJSON feature, represented as a QuBaLab 'ImageObject',
-                    or 'simple_feature' to get a regular GeoJSON 'Feature'.
-                    If None, then the default is to return the Py4J representation of the QuPath Java object.
-    :return: TODO
+    :param converter: can be 'geojson' to get an extended GeoJSON feature represented as a QuBaLab 'ImageObject',
+                      or 'simple_feature' to get a regular GeoJSON 'Feature'. By default, the Py4J representation of
+                      the QuPath Java object is returned.
+    :return: the list of objects of the specified image. The type of the objects depends on the converted parameter
     """
     gateway = get_default_gateway() if gateway is None else gateway
     image_data = get_current_image_data(gateway) if image_data is None else image_data
@@ -173,8 +174,8 @@ def get_objects(
             return features
         else:
             return [ImageFeature.create_from_feature(f) for f in features]
-
-    return path_objects
+    else:
+        return path_objects
 
 
 def count_objects(image_data: JavaObject = None, gateway: JavaGateway = None, object_type: ObjectType = None,) -> int:
@@ -228,7 +229,7 @@ def delete_objects(image_data: JavaObject = None, gateway: JavaGateway = None, o
 
 def refresh_qupath(gateway: JavaGateway = None):
     """
-    Update for the current QuPath hierarchy.
+    Update the current QuPath interface.
     
     This is sometimes needed to update the QuPath window when some changes are
     made to hierarchy.

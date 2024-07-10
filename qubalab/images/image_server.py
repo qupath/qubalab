@@ -38,7 +38,7 @@ class ImageServer(ABC):
 
     def read_region(
         self,
-        downsample: float,
+        downsample: float = 1.0,
         region: Union[Region2D, tuple[int, ...]] = None,
         x: int = 0,
         y: int = 0,
