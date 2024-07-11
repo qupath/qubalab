@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "qubalab"
-version = "0.0.1.dev0"
+version = "0.0.1"
 description = "A laboratory for exploring quantitative bioimage analysis in Python"
 authors = ["Pete Bankhead", "Alan O'Callaghan"]
 license = "Apache-2.0"
@@ -9,7 +9,7 @@ homepage = "https://qupath.github.io/"
 repository = "https://github.com/qupath/qubalab"
 
 [tool.poetry.dependencies]
-python = ">=3.10"
+python = "^3.10"
 tiffslide = "^2.1.2"
 aicsimageio = "^4.11.0"
 openslide-python = {version = "^1.2.0", markers = "extra == 'openslide' or extra == 'all'", optional = true}
@@ -17,6 +17,7 @@ dask-image = "^2024.5.3"
 py4j = "^0.10.9.7"
 geojson = "^3.1.0"
 shapely = "^2.0.4"
+rasterio = "^1.3.10"
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.0.0"

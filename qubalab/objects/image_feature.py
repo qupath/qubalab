@@ -1,8 +1,13 @@
+from __future__ import annotations
 import geojson
 import uuid
 import math
-from typing import Union, Any
+import numpy as np
 import geojson.geometry
+from typing import Union, Any
+import rasterio
+import rasterio.features
+import shapely
 from .object_type import ObjectType
 from .classification import Classification
 from .geometry import add_plane_to_geometry
@@ -64,7 +69,7 @@ class ImageFeature(geojson.Feature):
         if measurements is not None:
             props['measurements'] = ImageFeature._remove_NaN_values_from_measurements(measurements)
         if object_type is not None:
-            props['object_type'] = object_type
+            props['object_type'] = object_type.name
         if color is not None:
             props['color'] = color
         if extra_geometries is not None:
@@ -81,7 +86,7 @@ class ImageFeature(geojson.Feature):
         
     
     @classmethod
-    def create_from_feature(cls, feature: geojson.Feature):
+    def create_from_feature(cls, feature: geojson.Feature) -> ImageFeature:
         """
         Create an ImageFeature from a GeoJSON feature.
 
@@ -92,10 +97,14 @@ class ImageFeature(geojson.Feature):
         :return: an ImageFeature corresponding to the provided feature
         """
         geometry = cls._find_property(feature, 'geometry')
-
         plane = cls._find_property(feature, 'plane')
         if plane is not None:
             geometry = add_plane_to_geometry(geometry, z=getattr(plane, 'z', None), t=getattr(plane, 't', None))
+
+        object_type_property = cls._find_property(feature, 'object_type')
+        object_type = None
+        if object_type_property in [o.name for o in ObjectType]:
+            object_type = ObjectType[object_type_property]
 
         args = dict(
             geometry=geometry,
@@ -104,7 +113,7 @@ class ImageFeature(geojson.Feature):
             name=cls._find_property(feature, 'name'),
             color=cls._find_property(feature, 'color'),
             measurements=cls._find_property(feature, 'measurements'),
-            object_type=cls._find_property(feature, 'object_type'),
+            object_type=object_type,
         )
 
         nucleus_geometry = cls._find_property(feature, 'nucleusGeometry')
@@ -115,6 +124,70 @@ class ImageFeature(geojson.Feature):
 
         args['extra_properties'] = {k: v for k, v in feature['properties'].items() if k not in args and v is not None}
         return cls(**args)
+    
+    @classmethod
+    def create_from_label_image(
+        cls,
+        input_image: np.ndarray,
+        object_type: ObjectType = ObjectType.ANNOTATION,
+        connectivity: int = 4,
+        downsample: float = 1.0,
+        include_labels = False,
+        classification_names: Union[str, dict[int, str]] = None
+    ) -> list[ImageFeature]:
+        """
+        Create a list of ImageFeatures from a binary or labeled image.
+
+        The created geometries will be polygons, even when representing points or line.
+
+        :param input_image: a 2-dimensionnal binary (with a boolean type) or labeled
+                            (with a uint8 type) image containing the features to create.
+                            If a binary image is given, all True pixel values will be
+                            considered as potential features. If a labeled image is given,
+                            all pixel values greater than 0 will be considered as potential features
+        :param object_type: the type of object to create
+        :param connectivity: the pixel connectivity for grouping pixels into features (4 or 8)
+        :param downsample: the downsample to apply to the input image when detecting shapes
+        :param include_labels: whether to include a 'Label' measurement in the created features
+        :param classification_names: if str, the name of the classification to apply to all features.
+                                     if dict, a dictionnary mapping a label to a classification name
+        :return: a list of image features representing polygons present in the input image
+        """
+        features = []
+
+        if input_image.dtype == bool:
+            mask = input_image
+            input_image = input_image.astype(np.uint8)
+        else:
+            mask = input_image > 0
+
+        transform = rasterio.transform.Affine.scale(downsample)
+
+        existing_features = {}
+        for geometry, label in rasterio.features.shapes(input_image, mask=mask, connectivity=connectivity, transform=transform):
+            if label in existing_features:
+                existing_features[label]['geometry'] = shapely.geometry.shape(geometry).union(
+                    shapely.geometry.shape(existing_features[label]['geometry'])
+                )
+            else:
+                if isinstance(classification_names, str):
+                    classification_name = classification_names
+                elif isinstance(classification_names, dict) and int(label) in classification_names:
+                    classification_name = classification_names[int(label)]
+                else:
+                    classification_name = None
+
+                feature = cls(
+                    geometry=geometry,
+                    classification=Classification.get_cached_classification(classification_name),
+                    measurements={'Label': float(label)} if include_labels else None,
+                    object_type=object_type
+                )
+
+                existing_features[label] = feature
+                features.append(feature)
+
+        return features
 
     @property
     def classification(self) -> Classification:
@@ -144,9 +217,13 @@ class ImageFeature(geojson.Feature):
     @property
     def object_type(self) -> ObjectType:
         """
-        The QuPath object type (e.g. detection, annotation) this feature represents.
+        The QuPath object type (e.g. detection, annotation) this feature represents
+        or None if the object type doesn't exist or is not recognised.
         """
-        return self.properties['object_type']
+        if self.properties['object_type'] in [o.name for o in ObjectType]:
+            return ObjectType[self.properties['object_type']]
+        else:
+            return None
 
     @property
     def is_detection(self) -> bool:

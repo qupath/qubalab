@@ -1,5 +1,6 @@
 import geojson
 import math
+import numpy as np
 from qubalab.objects.image_feature import ImageFeature
 from qubalab.objects.classification import Classification
 from qubalab.objects.object_type import ObjectType
@@ -55,7 +56,7 @@ def test_measurements():
 
 
 def test_object_type():
-    expected_object_type = ObjectType.ANNOTATION
+    expected_object_type = ObjectType.DETECTION
     image_feature = ImageFeature(None, object_type=expected_object_type)
 
     object_type = image_feature.object_type
@@ -218,7 +219,7 @@ def test_measurements_when_created_from_feature():
 def test_object_type_when_created_from_feature():
     expected_object_type = ObjectType.ANNOTATION
     feature = geojson.Feature(properties={
-        "object_type": expected_object_type
+        "object_type": expected_object_type.name
     })
     image_feature = ImageFeature.create_from_feature(feature)
 
@@ -249,6 +250,268 @@ def test_nucleus_geometry_when_created_from_feature():
     nucleus_geometry = image_feature.nucleus_geometry
 
     assert nucleus_geometry == expected_nucleus_geometry
+
+
+def test_number_of_features_when_created_from_label_image_without_downsample():
+    label_image = np.array(
+        [[0, 1, 1, 0, 0],
+         [0, 1, 1, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 2, 2, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 3, 0, 0, 0],],
+        dtype=np.uint8
+    )
+    expected_number_of_features = 3
+
+    features = ImageFeature.create_from_label_image(label_image)
+
+    assert len(features) == expected_number_of_features
+
+
+def test_number_of_features_when_created_from_label_image_with_downsample():
+    downsample = 2
+    label_image = np.array(
+        [[0, 1, 1, 0, 0],
+         [0, 1, 1, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 2, 2, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 3, 0, 0, 0],],
+        dtype=np.uint8
+    )
+    expected_number_of_features = 3
+
+    features = ImageFeature.create_from_label_image(label_image, downsample=downsample)
+
+    assert len(features) == expected_number_of_features
+
+
+def test_object_type_when_created_from_label_image():
+    expected_object_type = ObjectType.CELL
+    label_image = np.array(
+        [[0, 1, 1, 0, 0],
+         [0, 1, 1, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 2, 2, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 3, 0, 0, 0],],
+        dtype=np.uint8
+    )
+
+    features = ImageFeature.create_from_label_image(label_image, object_type=expected_object_type)
+
+    assert all(feature.object_type == expected_object_type for feature in features)
+
+
+def test_measurement_when_created_from_label_image():
+    expected_measurements = [{'Label': float(label)} for label in [1, 2, 3]]
+    label_image = np.array(
+        [[0, 1, 1, 0, 0],
+         [0, 1, 1, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 2, 2, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 3, 0, 0, 0],],
+        dtype=np.uint8
+    )
+
+    features = ImageFeature.create_from_label_image(label_image, include_labels=True)
+
+    assert all(feature.measurements in expected_measurements for feature in features)
+
+
+def test_classification_when_created_from_label_image_and_classification_name_provided():
+    expected_classification_name = "name"
+    label_image = np.array(
+        [[0, 1, 1, 0, 0],
+         [0, 1, 1, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 2, 2, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 3, 0, 0, 0],],
+        dtype=np.uint8
+    )
+
+    features = ImageFeature.create_from_label_image(label_image, classification_names=expected_classification_name)
+
+    assert all(feature.classification.name == expected_classification_name for feature in features)
+
+
+def test_classification_when_created_from_label_image_and_classification_dict_provided():
+    classification_dict = {
+        # no classification for label 1
+        2: "name2",
+        3: "name3"
+    }
+    expected_classification_names = classification_dict.values()
+    label_image = np.array(
+        [[0, 1, 1, 0, 0],
+         [0, 1, 1, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 2, 2, 0],
+         [0, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0],
+         [0, 3, 0, 0, 0],],
+        dtype=np.uint8
+    )
+
+    features = ImageFeature.create_from_label_image(label_image, classification_names=classification_dict)
+
+    assert all(feature.classification is None or feature.classification.name in expected_classification_names for feature in features)
+
+
+def test_number_of_features_when_created_from_binary_image_without_downsample():
+    binary_image = np.array(
+        [[False, True,  True,  False, False],
+         [False, True,  True,  False, False],
+         [False, False, False, False, False],
+         [False, False, False, True,  False],
+         [False, False, False, True,  False],
+         [False, False, False, False, False],
+         [False, False, True,  True,  False],
+         [False, False, False, False, False],
+         [False, False, False, False, False],
+         [False, True,  False, False, False],],
+        dtype=bool
+    )
+    expected_number_of_features = 1
+
+    features = ImageFeature.create_from_label_image(binary_image)
+
+    assert len(features) == expected_number_of_features
+
+
+def test_number_of_features_when_created_from_binary_image_with_downsample():
+    downsample = 2
+    binary_image = np.array(
+        [[False, True,  True,  False, False],
+         [False, True,  True,  False, False],
+         [False, False, False, False, False],
+         [False, False, False, True,  False],
+         [False, False, False, True,  False],
+         [False, False, False, False, False],
+         [False, False, True,  True,  False],
+         [False, False, False, False, False],
+         [False, False, False, False, False],
+         [False, True,  False, False, False],],
+        dtype=bool
+    )
+    expected_number_of_features = 1
+
+    features = ImageFeature.create_from_label_image(binary_image, downsample=downsample)
+
+    assert len(features) == expected_number_of_features
+
+
+def test_object_type_when_created_from_binary_image():
+    expected_object_type = ObjectType.TILE
+    binary_image = np.array(
+        [[False, True,  True,  False, False],
+         [False, True,  True,  False, False],
+         [False, False, False, False, False],
+         [False, False, False, True,  False],
+         [False, False, False, True,  False],
+         [False, False, False, False, False],
+         [False, False, True,  True,  False],
+         [False, False, False, False, False],
+         [False, False, False, False, False],
+         [False, True,  False, False, False],],
+        dtype=bool
+    )
+
+    features = ImageFeature.create_from_label_image(binary_image, object_type=expected_object_type)
+
+    assert all(feature.object_type == expected_object_type for feature in features)
+
+
+def test_measurement_when_created_from_binary_image():
+    expected_measurement = {'Label': 1.0}
+    binary_image = np.array(
+        [[False, True,  True,  False, False],
+         [False, True,  True,  False, False],
+         [False, False, False, False, False],
+         [False, False, False, True,  False],
+         [False, False, False, True,  False],
+         [False, False, False, False, False],
+         [False, False, True,  True,  False],
+         [False, False, False, False, False],
+         [False, False, False, False, False],
+         [False, True,  False, False, False],],
+        dtype=bool
+    )
+
+    features = ImageFeature.create_from_label_image(binary_image, include_labels=True)
+
+    assert all(feature.measurements == expected_measurement for feature in features)
+
+
+def test_classification_when_created_from_binary_image_and_classification_name_provided():
+    expected_classification_name = "name"
+    binary_image = np.array(
+        [[False, True,  True,  False, False],
+         [False, True,  True,  False, False],
+         [False, False, False, False, False],
+         [False, False, False, True,  False],
+         [False, False, False, True,  False],
+         [False, False, False, False, False],
+         [False, False, True,  True,  False],
+         [False, False, False, False, False],
+         [False, False, False, False, False],
+         [False, True,  False, False, False],],
+        dtype=bool
+    )
+
+    features = ImageFeature.create_from_label_image(binary_image, classification_names=expected_classification_name)
+
+    assert all(feature.classification.name == expected_classification_name for feature in features)
+
+
+def test_classification_when_created_from_binary_image_and_classification_dict_provided():
+    classification_dict = {
+        1: "name1"
+    }
+    expected_classification_names = classification_dict.values()
+    binary_image = np.array(
+        [[False, True,  True,  False, False],
+         [False, True,  True,  False, False],
+         [False, False, False, False, False],
+         [False, False, False, True,  False],
+         [False, False, False, True,  False],
+         [False, False, False, False, False],
+         [False, False, True,  True,  False],
+         [False, False, False, False, False],
+         [False, False, False, False, False],
+         [False, True,  False, False, False],],
+        dtype=bool
+    )
+
+    features = ImageFeature.create_from_label_image(binary_image, classification_names=classification_dict)
+
+    assert all(feature.classification.name in expected_classification_names for feature in features)
 
 
 def test_classification_when_set_after_creation():
@@ -288,7 +551,7 @@ def test_measurements_when_set_after_creation():
 def test_object_type_when_set_after_creation():
     expected_object_type = ObjectType.ANNOTATION
     image_feature = ImageFeature(None)
-    image_feature.object_type = expected_object_type
+    image_feature.object_type = expected_object_type.name
 
     object_type = image_feature.object_type
 
