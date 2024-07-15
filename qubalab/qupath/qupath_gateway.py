@@ -207,7 +207,7 @@ def add_objects(features: Union[list[geojson.Feature], geojson.Feature], image_d
     if isinstance(features, geojson.Feature):
         features = list(features)
     
-    features_json = geojson.dumps(features, allow_nan=True, indent=2)
+    features_json = geojson.dumps(features, allow_nan=True)
     image_data.getHierarchy().addObjects(gateway.entry_point.toPathObjects(features_json))
 
 

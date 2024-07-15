@@ -108,18 +108,24 @@ class QuPathServer(ImageServer):
             temp_path = tempfile.mkstemp(prefix='qubalab-', suffix='.tif')[1]
 
             self._gateway.entry_point.writeImageRegion(self._qupath_server, request, temp_path)
-            image = bytes_to_image(temp_path, self.metadata.is_rgb)
+            image = bytes_to_image(temp_path, self.metadata.is_rgb, ImageShape(region.width, region.height, c=self.metadata.n_channels))
 
             os.remove(temp_path)
         else:
             format = 'png' if self.metadata.is_rgb else "imagej tiff"
 
             if self._pixel_access == PixelAccess.BYTES:
-                image = bytes_to_image(self._gateway.entry_point.getImageBytes(self._qupath_server, request, format), self.metadata.is_rgb)
+                image = bytes_to_image(
+                    self._gateway.entry_point.getImageBytes(self._qupath_server, request, format),
+                    self.metadata.is_rgb,
+                    ImageShape(region.width, region.height, c=self.metadata.n_channels)
+                )
             else:
-                image = base64_to_image(self._gateway.entry_point.getImageBase64(self._qupath_server, request, format), self.metadata.is_rgb)
-
-        image = np.moveaxis(image, -1, 0)    # move channel axis
+                image = base64_to_image(
+                    self._gateway.entry_point.getImageBase64(self._qupath_server, request, format),
+                    self.metadata.is_rgb,
+                    ImageShape(region.width, region.height, c=self.metadata.n_channels)
+                )
 
         return image
     

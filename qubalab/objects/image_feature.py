@@ -33,7 +33,7 @@ class ImageFeature(geojson.Feature):
     def __init__(
         self,
         geometry: geojson.geometry.Geometry,
-        classification: Classification = None,
+        classification: Union[Classification, dict] = None,
         name: str = None,
         measurements: dict[str, float] = None,
         object_type: ObjectType = ObjectType.ANNOTATION,
@@ -50,7 +50,9 @@ class ImageFeature(geojson.Feature):
         (if provided).
 
         :param geometry: the geometry of the feature
-        :param classification: the classification of this feature
+        :param classification: the classification of this feature, or a dictionnary with the
+                               'name' and 'color' properties defining respectively a string
+                               and a 3-long int tuple with values between 0 and 255
         :param name: the name of this feature
         :param measurements: a dictionnary containing measurements. Measurements
                              with NaN values will not be added
@@ -63,7 +65,16 @@ class ImageFeature(geojson.Feature):
         """
         props = {}
         if classification is not None:
-            props['classification'] = classification
+            if isinstance(classification, Classification):
+                props['classification'] = {
+                    "name": classification.name,
+                    "color": classification.color
+                }
+            else:
+                props['classification'] = {
+                    "name": classification.get('name'),
+                    "color": classification.get('color')
+                }
         if name is not None:
             props['name'] = name
         if measurements is not None:
@@ -131,7 +142,7 @@ class ImageFeature(geojson.Feature):
         input_image: np.ndarray,
         object_type: ObjectType = ObjectType.ANNOTATION,
         connectivity: int = 4,
-        downsample: float = 1.0,
+        scale: float = 1.0,
         include_labels = False,
         classification_names: Union[str, dict[int, str]] = None
     ) -> list[ImageFeature]:
@@ -147,7 +158,7 @@ class ImageFeature(geojson.Feature):
                             all pixel values greater than 0 will be considered as potential features
         :param object_type: the type of object to create
         :param connectivity: the pixel connectivity for grouping pixels into features (4 or 8)
-        :param downsample: the downsample to apply to the input image when detecting shapes
+        :param scale: a scale value to apply to the shapes
         :param include_labels: whether to include a 'Label' measurement in the created features
         :param classification_names: if str, the name of the classification to apply to all features.
                                      if dict, a dictionnary mapping a label to a classification name
@@ -161,7 +172,7 @@ class ImageFeature(geojson.Feature):
         else:
             mask = input_image > 0
 
-        transform = rasterio.transform.Affine.scale(downsample)
+        transform = rasterio.transform.Affine.scale(scale)
 
         existing_features = {}
         for geometry, label in rasterio.features.shapes(input_image, mask=mask, connectivity=connectivity, transform=transform):
@@ -187,6 +198,10 @@ class ImageFeature(geojson.Feature):
                 existing_features[label] = feature
                 features.append(feature)
 
+        # Ensure we have GeoJSON-compatible geometries
+        for feature in features:
+            feature['geometry'] = geojson.mapping.to_mapping(feature['geometry'])
+
         return features
 
     @property
@@ -194,7 +209,10 @@ class ImageFeature(geojson.Feature):
         """
         The classification of this feature (or None if not defined).
         """
-        return self.properties.get('classification')
+        if "classification" in self.properties:
+            return Classification(self.properties['classification'].get('name'), self.properties['classification'].get('color'))
+        else:
+            return None
 
     @property
     def name(self) -> str:
@@ -280,7 +298,13 @@ class ImageFeature(geojson.Feature):
 
     def __setattr__(self, name, value):
         if name == 'classification':
-            self.properties['classification'] = value
+            if isinstance(value, Classification):
+                self.properties['classification'] = {
+                    "name": value.name,
+                    "color": value.color
+                }
+            else:
+                self.properties['classification'] = value
         elif name == 'name':
             self.properties['name'] = value
         elif name == 'measurements':

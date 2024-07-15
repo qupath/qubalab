@@ -136,7 +136,6 @@ def _create_gateway(metadata: ImageMetadata, pixels: list):
         if metadata.n_z_slices > 1:
             image = image[..., request["z"], :, :]
         image = image[:, request["y"]:request["y"]+request["height"], request["x"]:request["x"]+request["width"]]
-        image = np.moveaxis(image, 0, -1)   # move channel axis
 
         return image
 

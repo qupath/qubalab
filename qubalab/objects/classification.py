@@ -60,7 +60,6 @@ class Classification(object):
             Classification._cached_classifications[classification.name] = classification
         return classification
 
-
     def __str__(self):
         return f"Classification {self._name} of color {self._color}"
         
