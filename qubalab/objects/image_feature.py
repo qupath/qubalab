@@ -48,7 +48,7 @@ class ImageFeature(geojson.Feature):
         Except from the geometry and id parameters, all parameters of this
         constructor will be added to the list of properties of this feature
         (if provided).
-
+s
         :param geometry: the geometry of the feature
         :param classification: the classification of this feature, or a dictionnary with the
                                'name' and 'color' properties defining respectively a string
@@ -113,9 +113,9 @@ class ImageFeature(geojson.Feature):
             geometry = add_plane_to_geometry(geometry, z=getattr(plane, 'z', None), t=getattr(plane, 't', None))
 
         object_type_property = cls._find_property(feature, 'object_type')
-        object_type = None
-        if object_type_property in [o.name for o in ObjectType]:
-            object_type = ObjectType[object_type_property]
+        if object_type_property is None:
+            object_type_property = cls._find_property(feature, 'objectType')
+        object_type = next((o for o in ObjectType if o.name.lower() == str(object_type_property).lower()), None)
 
         args = dict(
             geometry=geometry,
@@ -238,10 +238,7 @@ class ImageFeature(geojson.Feature):
         The QuPath object type (e.g. detection, annotation) this feature represents
         or None if the object type doesn't exist or is not recognised.
         """
-        if self.properties['object_type'] in [o.name for o in ObjectType]:
-            return ObjectType[self.properties['object_type']]
-        else:
-            return None
+        return next((o for o in ObjectType if o.name.lower() == str(self.properties['object_type']).lower()), None)
 
     @property
     def is_detection(self) -> bool:
@@ -310,7 +307,10 @@ class ImageFeature(geojson.Feature):
         elif name == 'measurements':
             self.properties['measurements'] = ImageFeature._remove_NaN_values_from_measurements(value)
         elif name == 'object_type':
-            self.properties['object_type'] = value
+            if isinstance(value, str):
+                self.properties['object_type'] = value
+            elif isinstance(value, ObjectType):
+                self.properties['object_type'] = value.name
         elif name == 'color':
             if len(value) != 3:
                 raise ValueError('Color must be a tuple of length 3')

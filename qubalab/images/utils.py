@@ -54,21 +54,21 @@ def _reorder_axes(image: np.ndarray, shape: ImageShape):
     :param shape: the desired shape of the image
     :param shape: the shape of the image to open. This will be used to reorder axes
     :returns: a numpy array representing the input image. This function will try to set
-              its dimensions to (c, y, x), but this may not always be the case if two
+              its dimensions to (c, y, x), but this may not be the case if two
               dimensions have the same number of elements
     """
     x_axis = -1
     y_axis = -1
     c_axis = -1
     for axis, number_of_elements_on_axis in enumerate(image.shape):
-        if x_axis == -1 and number_of_elements_on_axis == shape.x:
-            x_axis = axis
+        if c_axis == -1 and number_of_elements_on_axis == shape.c:
+            c_axis = axis
         elif y_axis == -1 and number_of_elements_on_axis == shape.y:
             y_axis = axis
-        elif c_axis == -1 and number_of_elements_on_axis == shape.c:
-            c_axis = axis
-    
+        elif x_axis == -1 and number_of_elements_on_axis == shape.x:
+            x_axis = axis
+
     if x_axis != -1 and y_axis != -1 and c_axis != -1:
-        return np.transpose(image, [c_axis, y_axis, x_axis])
+        return np.moveaxis(image, [c_axis, y_axis, x_axis], [0, 1, 2]).copy()
     else:
         return image

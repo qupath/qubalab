@@ -8,7 +8,7 @@ from geojson import GeoJSON
 from ..objects.image_feature import ImageFeature
 
 
-def plotImage(ax: Axes, image: np.ndarray, channel: int = 0) -> Axes:
+def plotImage(ax: Axes, image: np.ndarray, channel: int = 0, offset: tuple = None) -> Axes:
     """
     A utility function to display a NumPy array returned by an ImageServer.
 
@@ -16,6 +16,8 @@ def plotImage(ax: Axes, image: np.ndarray, channel: int = 0) -> Axes:
     :param image: a numpy array with dimensions (c, y, x). If it represents a RGB image, all channels will be displayed.
                   Otherwise, only the specified channel will be displayed
     :param channel: the channel to display if the image is not RGB
+    :param offset: an offset [x_min, y_min, x_max, y_max] to apply to the image. Useful if the image should match some features.
+                   None to not defined any offset
     :return: the Axes where the image was plotted
     """
     
@@ -31,8 +33,11 @@ def plotImage(ax: Axes, image: np.ndarray, channel: int = 0) -> Axes:
     if "float" in str(image.dtype):
         image /= image.max()
 
-    ax.imshow(image)
-    ax.axis(False)
+    if offset is not None and len(offset) == 4:
+        # y_min and y_max are swapped because otherwise image data is flipped vertically
+        ax.imshow(image, extent=(offset[0], offset[2], offset[3], offset[1]))
+    else:
+        ax.imshow(image)
 
     return ax
 

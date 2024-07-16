@@ -621,7 +621,17 @@ def test_measurements_when_set_after_creation():
 
 
 def test_object_type_when_set_after_creation():
-    expected_object_type = ObjectType.ANNOTATION
+    expected_object_type = ObjectType.CELL
+    image_feature = ImageFeature(None)
+    image_feature.object_type = expected_object_type
+
+    object_type = image_feature.object_type
+
+    assert object_type == expected_object_type
+
+
+def test_object_type_name_when_set_after_creation():
+    expected_object_type = ObjectType.TILE
     image_feature = ImageFeature(None)
     image_feature.object_type = expected_object_type.name
 
