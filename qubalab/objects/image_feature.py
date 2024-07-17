@@ -48,7 +48,7 @@ class ImageFeature(geojson.Feature):
         Except from the geometry and id parameters, all parameters of this
         constructor will be added to the list of properties of this feature
         (if provided).
-s
+        
         :param geometry: the geometry of the feature
         :param classification: the classification of this feature, or a dictionnary with the
                                'name' and 'color' properties defining respectively a string
