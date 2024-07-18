@@ -7517,6 +7517,7 @@ a.anchor-link {
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h1 id="Opening-images">Opening images<a class="anchor-link" href="#Opening-images">¶</a></h1><p>This notebook will show how to access metadata and pixel values of images with QuBaLab.</p>
+<p>A few classes and functions of the QuBaLab package will be presented throughout this notebook. To have more details on them, you can go to the documentation on <a href="https://qupath.github.io/qubalab/">https://qupath.github.io/qubalab/</a> and type a class/function name in the search bar. You will then see details on parameters functions take.</p>
 <p>QuBaLab uses the <code>ImageServer</code> class to open an image and get its metadata and pixel values. <code>ImageServer</code> is an abstract class, so it cannot be directly used. Instead, you have to choose an implementation based on the type of image you want to open:</p>
 <ul>
 <li>If you need to open an RGB pyramidal image, you can use the <code>OpenSlideServer</code>. This class internally uses <a href="https://openslide.org/">OpenSlide</a>: it can read all resolutions of a large pyramidal image but is only suitable for RGB images.</li>
