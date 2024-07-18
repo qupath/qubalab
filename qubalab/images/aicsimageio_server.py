@@ -27,8 +27,6 @@ class AICSImageIoServer(ImageServer):
 
     def __init__(self, path: str, scene: int = 0, detect_resolutions=True, aics_kwargs: dict[str, any] = {}, **kwargs):
         """
-        Create the server.
-
         :param path: the local path to the image to open
         :param scene: AICSImageIO divides images into scene. This parameter specifies which scene to consider
         :param detect_resolutions: whether to look at all resolutions of the image (instead of just the full resolution)

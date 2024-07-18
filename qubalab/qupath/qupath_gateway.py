@@ -10,16 +10,6 @@ from ..objects.object_type import ObjectType
 from ..objects.geojson import geojson_features_from_string
 
 
-class SnapshotType(Enum):
-    """
-    Represent what to include when creating a snapshot of QuPath:
-    - The whole user interface.
-    - Only the viewer.
-    """
-    QUPATH = 1
-    VIEWER = 2
-
-
 _default_gateway = None
 
 
@@ -105,25 +95,25 @@ def get_project(gateway: JavaGateway = None) -> JavaObject:
     return gateway.entry_point.getProject()
 
 
-def create_snapshot(gateway: JavaGateway = None, snapshot_type: SnapshotType = SnapshotType.QUPATH) -> np.ndarray:
+def create_snapshot(gateway: JavaGateway = None, snapshot_type: str = 'qupath') -> np.ndarray:
     """
     Create and return a snapshot of QuPath. 
 
     :param gateway: the gateway to use. Can be None to use the default gateway
-    :param snapshot_type: what to include in the snapshot (entire qupath window or only viewer)
+    :param snapshot_type: what to include in the snapshot. 'qupath' for the entire qupath window or
+                          'viewer' for only the viewer
     :returns: a numpy array with dimensions (y, x, c) representing an RGB image
     :raises ValueError: if the snapshot type was not recognized
     """
     gateway = get_default_gateway() if gateway is None else gateway
     qp = gateway.entry_point
 
-    match snapshot_type:
-        case SnapshotType.QUPATH:
-            image = qp.snapshotBase64(qp.getQuPath())
-        case SnapshotType.VIEWER:
-            image = qp.snapshotBase64(qp.getCurrentViewer())
-        case _:
-            raise ValueError(f'Unknown snapshot_type {snapshot_type}')
+    if snapshot_type == 'qupath':
+        image = qp.snapshotBase64(qp.getQuPath())
+    elif snapshot_type == 'viewer':
+        image = qp.snapshotBase64(qp.getCurrentViewer())
+    else:
+        raise ValueError(f'Unknown snapshot_type {snapshot_type}')
         
     return utils.base64_to_image(image, True)
 

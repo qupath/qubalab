@@ -12,7 +12,7 @@ def geojson_features_from_string(json_string: str, **kwargs) -> Union[Iterable[g
     will throw an exception.
 
     :param json_string: a string representing a GeoJSON
-    :param \**kwargs: additional parameters to pass to the geojson loader
+    :param kwargs: additional parameters to pass to the geojson loader
     :returns: a single or a collection of features representing the provided string
     """
     results = _geojson_from_string(json_string, **kwargs)

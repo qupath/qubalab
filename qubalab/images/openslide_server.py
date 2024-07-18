@@ -26,8 +26,6 @@ class OpenSlideServer(ImageServer):
 
     def __init__(self, path: str, strip_alpha=True, single_channel=False, limit_bounds=True, **kwargs):
         """
-        Create the server.
-
         :param path: the local path to the image to open
         :param strip_alpha: whether to strip the alpha channel from the image
         :param single_channel: whether to keep only the first channel of the image

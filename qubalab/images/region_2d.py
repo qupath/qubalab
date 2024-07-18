@@ -45,6 +45,7 @@ class Region2D:
 
         This can be used to convert coordinates from (for example) the full image resolution 
         to a different pyramidal level.
+        
         :param downsample: the downsample to apply to this region
         :returns: a Region2D downsampled by the provided factor
         :raises ValueError: when downsample is 0

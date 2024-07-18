@@ -14,25 +14,9 @@ from .utils import base64_to_image, bytes_to_image
 from ..qupath import qupath_gateway
 
 
-class PixelAccess(Enum):
-    """
-    Represent a way to send pixel values from QuPath to Python.
-
-    Pixel values are retrieved in one of the following ways:
-    - By writing pixels to a file on the disk with QuPath, then reading the written file with Python.
-    - By converted pixels from a BufferedImage to bytes with QuPath, then reading the bytes with Python.
-    - By converted pixels from a BufferedImage to base 64 encoded text with QuPath, then reading the text with Python.
-    """
-    BASE_64 = 1
-    BYTES = 2
-    TEMP_FILES = 3
-
-
 class QuPathServer(ImageServer):
     """
     An ImageServer that communicates with a QuPath ImageServer through a Gateway.
-
-    Pixel values are retrieved in one of the following ways described by the PixelAccess enumeration.
 
     Closing this server won't close the underlying QuPath ImageServer.
     """
@@ -41,19 +25,24 @@ class QuPathServer(ImageServer):
         self,
         gateway: JavaGateway = None,
         qupath_server: JavaObject = None,
-        pixel_access: PixelAccess = PixelAccess.BASE_64,
+        pixel_access: str = 'base_64',
         **kwargs
     ):
         """
-        Create the server.
-
         :param gateway: the gateway between Python and QuPath. If not specified, the default gateway is used
         :param qupath_server: a Java object representing the QuPath ImageServer. If not specified, the currently
                               opened in QuPath ImageServer is used
-        :param pixel_access: how to send pixel values from QuPath to Python
+        :param pixel_access: how to send pixel values from QuPath to Python. Can be 'base_64' to convert pixels to
+                             base 64 encoded text, 'bytes' to to convert pixels to bytes, or 'temp_files' to use
+                             temporary files
         :param resize_method: the resampling method to use when resizing the image for downsampling. Bicubic by default
+        :raises ValueError: when pixel_access has an unexpected value
         """
         super().__init__(**kwargs)
+
+        available_pixel_access = ['base_64', 'bytes', 'temp_files']
+        if pixel_access not in available_pixel_access:
+            raise ValueError(f'The provided pixel access ({pixel_access}) is not one of {str(available_pixel_access)}')
 
         self._gateway = qupath_gateway.get_default_gateway() if gateway is None else gateway
         self._qupath_server = qupath_gateway.get_current_image_data(gateway).getServer() if qupath_server is None else qupath_server
@@ -86,9 +75,6 @@ class QuPathServer(ImageServer):
         )
 
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
-        # TODO: Explore requesting directly in QuPath - this is awkward and could result in 
-        # rounding problems
-
         if level < 0:
             level = len(self.metadata.downsamples) + level
         downsample = self._qupath_server.getDownsampleForResolution(level)
@@ -104,7 +90,7 @@ class QuPathServer(ImageServer):
             region.t
         )
 
-        if self._pixel_access == PixelAccess.TEMP_FILES:
+        if self._pixel_access == 'temp_files':
             temp_path = tempfile.mkstemp(prefix='qubalab-', suffix='.tif')[1]
 
             self._gateway.entry_point.writeImageRegion(self._qupath_server, request, temp_path)
@@ -114,7 +100,7 @@ class QuPathServer(ImageServer):
         else:
             format = 'png' if self.metadata.is_rgb else "imagej tiff"
 
-            if self._pixel_access == PixelAccess.BYTES:
+            if self._pixel_access == 'bytes':
                 image = bytes_to_image(
                     self._gateway.entry_point.getImageBytes(self._qupath_server, request, format),
                     self.metadata.is_rgb,

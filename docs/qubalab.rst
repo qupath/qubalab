@@ -1,6 +1,8 @@
 API documentation
 =================
 
+This page contains the list of public classes and functions of the QuBaLab package.
+
 .. toctree::
    :maxdepth: 4
 

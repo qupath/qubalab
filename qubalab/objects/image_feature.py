@@ -21,12 +21,19 @@ class ImageFeature(geojson.Feature):
     GeoJSON Feature with additional properties for image objects.
 
     The added properties are:
+
     - A classification (defined by a name and a color).
+
     - A name.
+
     - A list of measurements.
+
     - A type of QuPath object (e.g. detection, annotation).
+
     - A color.
+
     - Additional geometries.
+    
     - And any other property.
     """
 
@@ -43,8 +50,6 @@ class ImageFeature(geojson.Feature):
         extra_properties: dict[str, Any] = None
     ):
         """
-        Create the image feature.
-
         Except from the geometry and id parameters, all parameters of this
         constructor will be added to the list of properties of this feature
         (if provided).

@@ -9,6 +9,10 @@ class ImagePlane(dict):
     """
 
     def __init__(self, z: int = 0, t: int = 0):
+        """
+        :param z: the z-stack of the geometry
+        :param t: the time point of the geometry
+        """
         dict.__init__(self, z=z, t=t)
 
     def __getattr__(self, name):

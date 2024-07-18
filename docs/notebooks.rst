@@ -1,7 +1,7 @@
 Notebooks
 ===============================
 
-TODO
+This page contains three notebooks that show how to use the QuBaLab package. It is recommended to go through them in order.
 
 .. toctree::
    :maxdepth: 1
