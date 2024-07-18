@@ -8,6 +8,7 @@ class PixelLength:
     Simple data class to store pixel size information, along one dimension.
 
     Can be thought of as the pixel width, pixel height or pixel depth (z-spacing).
+    
     :param length: the length of the pixel, by default 1
     :param unit: a text describing the unit of length, by default "pixels"
     """

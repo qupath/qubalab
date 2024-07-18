@@ -23,8 +23,6 @@ class ImageMetadata:
         downsamples = None
     ):
         """
-        Create the metadata.
-
         :param path: the local path to the image
         :param name: the image name
         :param shapes: the image shape, for each resolution of the image

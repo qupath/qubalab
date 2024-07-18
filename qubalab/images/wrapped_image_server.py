@@ -13,8 +13,6 @@ class WrappedImageServer(ImageServer):
 
     def __init__(self, base_server: ImageServer, **kwargs):
         """
-        Create the WrappedImageServer.
-
         :param base_server: the server to wrap
         :param resize_method: the resampling method to use when resizing the image for downsampling. Bicubic by default
         """

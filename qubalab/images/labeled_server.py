@@ -32,8 +32,6 @@ class LabeledImageServer(ImageServer):
         **kwargs
     ):
         """
-        Create the server.
-
         :param base_image_metadata: the metadata of the image containing the image features
         :param features: the image features to draw
         :param label_map: a dictionnary mapping a classification to a label. The value of pixels where an image feature with

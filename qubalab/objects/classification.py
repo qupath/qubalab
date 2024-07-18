@@ -10,8 +10,6 @@ class Classification(object):
 
     def __init__(self, name: str, color: tuple[int, int, int] = None):
         """
-        Create the classification.
-
         :param name: the name of the classification
         :param color: the RGB color (each component between 0 and 255) of the classification. Can be None to use a random color
         """

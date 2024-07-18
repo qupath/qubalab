@@ -2,8 +2,9 @@ import numpy as np
 import tifffile
 import imageio.v3 as iio
 import base64
+import pytest
 from unittest.mock import Mock
-from qubalab.images.qupath_server import QuPathServer, PixelAccess
+from qubalab.images.qupath_server import QuPathServer
 from qubalab.images.region_2d import Region2D
 from qubalab.images.metadata.image_metadata import ImageMetadata
 from qubalab.images.metadata.image_shape import ImageShape
@@ -159,6 +160,13 @@ def _create_gateway(metadata: ImageMetadata, pixels: list):
     return gateway
 
 
+def test_invalid_pixel_access():
+    pixel_access='invalid_pixel_access'
+
+    with pytest.raises(ValueError):
+        QuPathServer(pixel_access=pixel_access)
+
+
 def test_RGB_metadata():
     metadata = sample_RGB_metadata
     gateway = _create_gateway(metadata, sample_RGB_pixels)
@@ -177,7 +185,7 @@ def test_RGB_full_resolution_with_temp_file():
     expected_image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)
     gateway = _create_gateway(sample_RGB_metadata, sample_RGB_pixels)
     qupath_server = _create_qupath_server(sample_RGB_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.TEMP_FILES)
+    server = QuPathServer(gateway, qupath_server, 'temp_files')
 
     image = server.read_region(
         sample_RGB_metadata.downsamples[level],
@@ -194,7 +202,7 @@ def test_RGB_lowest_resolution_with_temp_file():
     expected_image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)
     gateway = _create_gateway(sample_RGB_metadata, sample_RGB_pixels)
     qupath_server = _create_qupath_server(sample_RGB_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.TEMP_FILES)
+    server = QuPathServer(gateway, qupath_server, 'temp_files')
 
     image = server.read_region(
         sample_RGB_metadata.downsamples[level],
@@ -215,7 +223,7 @@ def test_RGB_tile_of_full_resolution_with_temp_file():
     expected_image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)[:, y:y+height, x:x+width]
     gateway = _create_gateway(sample_RGB_metadata, sample_RGB_pixels)
     qupath_server = _create_qupath_server(sample_RGB_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.TEMP_FILES)
+    server = QuPathServer(gateway, qupath_server, 'temp_files')
 
     image = server.read_region(
         sample_RGB_metadata.downsamples[level],
@@ -232,7 +240,7 @@ def test_RGB_full_resolution_with_bytes():
     expected_image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)
     gateway = _create_gateway(sample_RGB_metadata, sample_RGB_pixels)
     qupath_server = _create_qupath_server(sample_RGB_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BYTES)
+    server = QuPathServer(gateway, qupath_server, 'bytes')
 
     image = server.read_region(
         sample_RGB_metadata.downsamples[level],
@@ -249,7 +257,7 @@ def test_RGB_lowest_resolution_with_bytes():
     expected_image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)
     gateway = _create_gateway(sample_RGB_metadata, sample_RGB_pixels)
     qupath_server = _create_qupath_server(sample_RGB_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BYTES)
+    server = QuPathServer(gateway, qupath_server, 'bytes')
 
     image = server.read_region(
         sample_RGB_metadata.downsamples[level],
@@ -270,7 +278,7 @@ def test_RGB_tile_of_full_resolution_with_bytes():
     expected_image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)[:, y:y+height, x:x+width]
     gateway = _create_gateway(sample_RGB_metadata, sample_RGB_pixels)
     qupath_server = _create_qupath_server(sample_RGB_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BYTES)
+    server = QuPathServer(gateway, qupath_server, 'bytes')
 
     image = server.read_region(
         sample_RGB_metadata.downsamples[level],
@@ -287,7 +295,7 @@ def test_RGB_full_resolution_with_base64():
     expected_image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)
     gateway = _create_gateway(sample_RGB_metadata, sample_RGB_pixels)
     qupath_server = _create_qupath_server(sample_RGB_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BASE_64)
+    server = QuPathServer(gateway, qupath_server, 'base_64')
 
     image = server.read_region(
         sample_RGB_metadata.downsamples[level],
@@ -304,7 +312,7 @@ def test_RGB_lowest_resolution_with_base64():
     expected_image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)
     gateway = _create_gateway(sample_RGB_metadata, sample_RGB_pixels)
     qupath_server = _create_qupath_server(sample_RGB_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BASE_64)
+    server = QuPathServer(gateway, qupath_server, 'base_64')
 
     image = server.read_region(
         sample_RGB_metadata.downsamples[level],
@@ -325,7 +333,7 @@ def test_RGB_tile_of_full_resolution_with_base64():
     expected_image = np.array(sample_RGB_pixels[level], dtype=sample_RGB_metadata.dtype)[:, y:y+height, x:x+width]
     gateway = _create_gateway(sample_RGB_metadata, sample_RGB_pixels)
     qupath_server = _create_qupath_server(sample_RGB_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BASE_64)
+    server = QuPathServer(gateway, qupath_server, 'base_64')
 
     image = server.read_region(
         sample_RGB_metadata.downsamples[level],
@@ -357,7 +365,7 @@ def test_float32_full_resolution_with_temp_file():
     expected_image = np.array(sample_float32_pixels[level], dtype=sample_float32_metadata.dtype)[t, :, z, ...]
     gateway = _create_gateway(sample_float32_metadata, sample_float32_pixels)
     qupath_server = _create_qupath_server(sample_float32_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.TEMP_FILES)
+    server = QuPathServer(gateway, qupath_server, 'temp_files')
 
     image = server.read_region(
         sample_float32_metadata.downsamples[level],
@@ -376,7 +384,7 @@ def test_float32_lowest_resolution_with_temp_file():
     expected_image = np.array(sample_float32_pixels[level], dtype=sample_float32_metadata.dtype)[t, :, z, ...]
     gateway = _create_gateway(sample_float32_metadata, sample_float32_pixels)
     qupath_server = _create_qupath_server(sample_float32_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.TEMP_FILES)
+    server = QuPathServer(gateway, qupath_server, 'temp_files')
 
     image = server.read_region(
         sample_float32_metadata.downsamples[level],
@@ -399,7 +407,7 @@ def test_float32_tile_of_full_resolution_with_temp_file():
     expected_image = np.array(sample_float32_pixels[level], dtype=sample_float32_metadata.dtype)[t, :, z, y:y+height, x:x+width]
     gateway = _create_gateway(sample_float32_metadata, sample_float32_pixels)
     qupath_server = _create_qupath_server(sample_float32_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.TEMP_FILES)
+    server = QuPathServer(gateway, qupath_server, 'temp_files')
 
     image = server.read_region(
         sample_float32_metadata.downsamples[level],
@@ -418,7 +426,7 @@ def test_float32_full_resolution_with_bytes():
     expected_image = np.array(sample_float32_pixels[level], dtype=sample_float32_metadata.dtype)[t, :, z, ...]
     gateway = _create_gateway(sample_float32_metadata, sample_float32_pixels)
     qupath_server = _create_qupath_server(sample_float32_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BYTES)
+    server = QuPathServer(gateway, qupath_server, 'bytes')
 
     image = server.read_region(
         sample_float32_metadata.downsamples[level],
@@ -437,7 +445,7 @@ def test_float32_lowest_resolution_with_bytes():
     expected_image = np.array(sample_float32_pixels[level], dtype=sample_float32_metadata.dtype)[t, :, z, ...]
     gateway = _create_gateway(sample_float32_metadata, sample_float32_pixels)
     qupath_server = _create_qupath_server(sample_float32_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BYTES)
+    server = QuPathServer(gateway, qupath_server, 'bytes')
 
     image = server.read_region(
         sample_float32_metadata.downsamples[level],
@@ -460,7 +468,7 @@ def test_float32_tile_of_full_resolution_with_bytes():
     expected_image = np.array(sample_float32_pixels[level], dtype=sample_float32_metadata.dtype)[t, :, z, y:y+height, x:x+width]
     gateway = _create_gateway(sample_float32_metadata, sample_float32_pixels)
     qupath_server = _create_qupath_server(sample_float32_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BYTES)
+    server = QuPathServer(gateway, qupath_server, 'bytes')
 
     image = server.read_region(
         sample_float32_metadata.downsamples[level],
@@ -479,7 +487,7 @@ def test_float32_full_resolution_with_base64():
     expected_image = np.array(sample_float32_pixels[level], dtype=sample_float32_metadata.dtype)[t, :, z, ...]
     gateway = _create_gateway(sample_float32_metadata, sample_float32_pixels)
     qupath_server = _create_qupath_server(sample_float32_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BASE_64)
+    server = QuPathServer(gateway, qupath_server, 'base_64')
 
     image = server.read_region(
         sample_float32_metadata.downsamples[level],
@@ -498,7 +506,7 @@ def test_float32_lowest_resolution_with_base64():
     expected_image = np.array(sample_float32_pixels[level], dtype=sample_float32_metadata.dtype)[t, :, z, ...]
     gateway = _create_gateway(sample_float32_metadata, sample_float32_pixels)
     qupath_server = _create_qupath_server(sample_float32_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BASE_64)
+    server = QuPathServer(gateway, qupath_server, 'base_64')
 
     image = server.read_region(
         sample_float32_metadata.downsamples[level],
@@ -521,7 +529,7 @@ def test_float32_tile_of_full_resolution_with_base64():
     expected_image = np.array(sample_float32_pixels[level], dtype=sample_float32_metadata.dtype)[t, :, z, y:y+height, x:x+width]
     gateway = _create_gateway(sample_float32_metadata, sample_float32_pixels)
     qupath_server = _create_qupath_server(sample_float32_metadata)
-    server = QuPathServer(gateway, qupath_server, PixelAccess.BASE_64)
+    server = QuPathServer(gateway, qupath_server, 'base_64')
 
     image = server.read_region(
         sample_float32_metadata.downsamples[level],

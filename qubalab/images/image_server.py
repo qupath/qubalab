@@ -19,8 +19,6 @@ class ImageServer(ABC):
 
     def __init__(self, resize_method: Image.Resampling = Image.Resampling.BICUBIC):
         """
-        Create the ImageServer.
-
         :param resize_method: the resampling method to use when resizing the image for downsampling. Bicubic by default
         """
         super().__init__()
@@ -166,6 +164,10 @@ class ImageServer(ABC):
     def to_dask(self, downsample: Union[float, Iterable[float]] = None) -> Union[da.Array, tuple[da.Array, ...]]:
         """
         Convert this image to one or more dask arrays, at any arbitary downsample factor.
+
+        It turns out that requesting at an arbitrary downsample level is very slow - it seems that all
+        pixels are requested upon first compute (even for a small region), and then resized.
+        Prefer using ImageServer.level_to_dask() instead.
 
         :param downsample: the downsample factor to use, or a list of downsample factors to use. If None, all available resolutions will be used
         :return: a dask array or tuple of dask arrays, depending upon whether one or more downsample factors are required

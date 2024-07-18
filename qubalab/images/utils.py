@@ -31,7 +31,7 @@ def bytes_to_image(uri: {str, bytes}, is_rgb: bool, shape: ImageShape = None) ->
 
 def base64_to_image(data: str, is_rgb: bool, shape: ImageShape = None) -> np.ndarray:
     """
-    Read the provided string with the Base64 format and convert them to a numpy array
+    Read the provided string with the Base64 format and convert it to a numpy array
     representing an image.
 
     :param uri: a text with the Base64 format. This must represent a 2-dimensionnal

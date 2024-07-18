@@ -17,7 +17,7 @@ def plotImage(ax: Axes, image: np.ndarray, channel: int = 0, offset: tuple = Non
                   Otherwise, only the specified channel will be displayed
     :param channel: the channel to display if the image is not RGB
     :param offset: an offset [x_min, y_min, x_max, y_max] to apply to the image. Useful if the image should match some features.
-                   None to not defined any offset
+                   None to not define any offset
     :return: the Axes where the image was plotted
     """
     
@@ -54,7 +54,7 @@ def plotImageFeatures(
     and nucleus geometries.
     
     :param ax: the Axes to plot to
-    :param image_features: the iamge features to plot
+    :param image_features: the image features to plot
     :param region: the region to plot. Features outside this region won't be plotted.
                    All features are plotted if this parameter is undefined. 
     :param default_color: the color to use for unclassified features

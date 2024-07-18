@@ -31,8 +31,6 @@ class IccProfileServer(WrappedImageServer):
             **kwargs
     ):
         """
-        Create the server.
-
         :param base_server: the server to wrap
         :param icc_profile: the ICC profile to apply to the wrapped image server. If omitted, an attempt is made to read the profile from the image.
                             If not successful, a warning will be logged.
