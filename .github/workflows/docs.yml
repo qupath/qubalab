@@ -27,6 +27,4 @@ jobs:
         run: poetry install --no-interaction
         
       - name: Build documentation
-        run: |
-          cd docs
-          make html
+        run: poetry run sphinx-build -M html docs/ docs/_build/
