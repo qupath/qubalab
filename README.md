@@ -22,12 +22,14 @@ QuBaLab doesn't share code with QuPath, but is uses many of the same conventions
 representing objects in a GeoJSON-compatible way.
 By using the same custom fields for things like measurements and classifications, exchanging data is much easier.
 
+## Getting started
+
+You can find the documentation on https://qupath.github.io/qubalab/.
+
 This project contains the QuBaLab package in the `qubalab` folder. Take a look at the *Installation* section to install it.
 
-Some notebooks present in the `notebooks` folder show how to use the QuBaLab package. Take a look at the *Development* section
-to run them. 
-
-TODO docs
+Some notebooks present in the `notebooks` folder show how to use the QuBaLab package. If you want to run them, you can take a look at the *Development* section.
+If you just want to go through them, look at the [documentation](https://qupath.github.io/qubalab/notebooks.html). 
 
 ## Installation
 
