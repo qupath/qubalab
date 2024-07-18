@@ -1,13 +1,13 @@
-# This workflow will run unit tests on pull requests or when manually activated
+# This workflow will build and publish documentation on pull requests or when manually activated
 
-name: test
+name: docs
 
 on:
   pull_request:
   workflow_dispatch:
 
 jobs:
-  test:
+  docs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -26,5 +26,7 @@ jobs:
       - name: Install project
         run: poetry install --no-interaction
         
-      - name: Run tests
-        run: poetry run pytest
+      - name: Build documentation
+        run: |
+          cd docs
+          make
