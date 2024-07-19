@@ -7639,7 +7639,7 @@ Annotation
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <p>By default, the returned objects are Java objects.</p>
-<p>This is useful if we want to do something that isn't supported by the <code>qubalab.qupath.py4j</code> module, but it isn't very convenient... we end up needing to write Python code that looks a <em>lot</em> like Java code. We can also get stuck when things get complicated (e.g. due to threading issues) because we don't have the ability to do <em>everything</em> Java can do.</p>
+<p>This is useful if we want to do something that isn't supported by the <code>qubalab.qupath.qupath_gateway</code> module, but it isn't very convenient... we end up needing to write Python code that looks a <em>lot</em> like Java code. We can also get stuck when things get complicated (e.g. due to threading issues) because we don't have the ability to do <em>everything</em> Java can do.</p>
 <p>We <em>can</em> make changes though, like setting names and classifications, which is nice.</p>
 <p>If we do, we should remember to call <code>qupath_gateway.refresh_qupath()</code> to update the interface accordingly.</p>
 </div>
@@ -7961,7 +7961,7 @@ Annotation
 <span class="n">image</span> <span class="o">=</span> <span class="n">qupath_server</span><span class="o">.</span><span class="n">read_region</span><span class="p">(</span><span class="n">downsample</span><span class="o">=</span><span class="n">downsample</span><span class="p">)</span>
 
 <span class="c1"># Convert the image to greyscale</span>
-<span class="k">if</span> <span class="n">qupath_server</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">n_channels</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+<span class="k">if</span> <span class="n">qupath_server</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">is_rgb</span><span class="p">:</span>
     <span class="c1"># If the image is RGB, we convert it to grayscale</span>
     <span class="c1"># read_region() returns an image with the (c, y, x) shape.</span>
     <span class="c1"># To use rgb2gray, we need to move the channel axis so that</span>
@@ -7986,7 +7986,7 @@ Annotation
     <span class="c1"># Create annotations from mask</span>
     <span class="n">annotations</span> <span class="o">=</span> <span class="n">ImageFeature</span><span class="o">.</span><span class="n">create_from_label_image</span><span class="p">(</span>
         <span class="n">mask</span><span class="p">,</span>   
-        <span class="n">scale</span><span class="o">=</span><span class="n">downsample</span><span class="p">,</span>   <span class="c1"># mask is 20 times smaller than the QuPath image, so we scale the</span>
+        <span class="n">scale</span><span class="o">=</span><span class="n">downsample</span><span class="p">,</span>   <span class="c1"># mask is 20 times smaller than the QuPath image, so we scale</span>
                             <span class="c1"># the annotations to fit the QuPath image</span>
         <span class="n">classification_names</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>  <span class="c1"># set a single classification to the detected annotations</span>
     <span class="p">)</span>
