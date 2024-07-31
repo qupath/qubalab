@@ -148,4 +148,3 @@ class QuPathServer(ImageServer):
         g = (rgb >> 8) & 255
         b = rgb & 255
         return r / 255.0, g / 255.0, b / 255.0
-    

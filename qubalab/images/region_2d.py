@@ -71,4 +71,3 @@ class Region2D:
             y2 = int(round(self.y + self.height) / downsample)
 
         return Region2D(x=x, y=y, width=x2 - x, height=y2 - y, z=self.z, t=self.t)
-    
