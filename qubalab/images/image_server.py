@@ -165,7 +165,7 @@ class ImageServer(ABC):
         """
         Convert this image to one or more dask arrays, at any arbitary downsample factor.
 
-        It turns out that requesting at an arbitrary downsample level is very slow - it seems that all
+        It turns out that requesting at an arbitrary downsample level is very slow - currently, all
         pixels are requested upon first compute (even for a small region), and then resized.
         Prefer using ImageServer.level_to_dask() instead.
 
