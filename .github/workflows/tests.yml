@@ -17,14 +17,8 @@ jobs:
         id: setup-python
         uses: actions/setup-python@v5
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        
-      - name: Install dependencies
-        run: poetry install --no-interaction --no-root
-        
-      - name: Install project
-        run: poetry install --no-interaction
-        
+      - name: Install
+        run: pip install .[test]
+
       - name: Run tests
-        run: poetry run pytest
+        run: pytest

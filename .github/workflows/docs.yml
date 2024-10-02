@@ -30,17 +30,11 @@ jobs:
         id: setup-python
         uses: actions/setup-python@v5
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        
-      - name: Install dependencies
-        run: poetry install --no-interaction --no-root
-        
-      - name: Install project
-        run: poetry install --no-interaction
-        
+      - name: Install
+        run: pip install .[doc]
+                
       - name: Build documentation
-        run: poetry run sphinx-build -M html docs/ docs/_build/
+        run: sphinx-build -M html docs/ docs/_build/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

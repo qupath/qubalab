@@ -1,6 +1,6 @@
 # QuBaLab
 
-This is a Python package for exploring quantitative bioimage analysis... *especially* (but not exclusively) in 
+This is a Python package for exploring quantitative bioimage analysis... *especially* (but not exclusively) in
 combination with QuPath (https://qupath.github.io/).
 
 The name comes from **Quantitative Bioimage Analysis Laboratory**.
@@ -29,7 +29,7 @@ You can find the documentation on https://qupath.github.io/qubalab/.
 This project contains the QuBaLab package in the `qubalab` folder. Take a look at the *Installation* section to install it.
 
 Some notebooks present in the `notebooks` folder show how to use the QuBaLab package. If you want to run them, you can take a look at the *Development* section.
-If you just want to go through them, look at the [documentation](https://qupath.github.io/qubalab/notebooks.html). 
+If you just want to go through them, look at the [documentation](https://qupath.github.io/qubalab/notebooks.html).
 
 ## Installation
 
@@ -42,14 +42,14 @@ contribute to this project, take a look at the *Development* section.
 
 This part is useful if you want to run the notebooks or contribute to this project.
 
-You will have to install [Poetry](https://python-poetry.org/docs/#installation).
-
-Then, run:
+First, run:
 
 ```bash
-git clone https://github.com/qupath/qubalab.git         # to clone this repository
-cd qubalab                                              # to go to the project directory
-poetry install            # to install the dependencies
-poetry run jupyter-lab    # to start the Jupyter notebooks
-poetry run pytest         # to run unit tests
+git clone https://github.com/qupath/qubalab.git         # clone this repository
+cd qubalab                                              # go to the project directory
+python -m venv ./.venv                                  # create a local virual environment
+source ./.venv/bin/activate                             # activate the venv
+pip install -e ".[dev,test,openslide]"                  # install qubalab (-e means changes are loaded dynamically)
+jupyter lab .                                           # to start the Jupyter notebooks
+pytest                                                  # to run unit tests
 ```
