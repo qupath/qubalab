@@ -24,7 +24,7 @@ By using the same custom fields for things like measurements and classifications
 
 ## Getting started
 
-You can find the documentation on https://qupath.github.io/qubalab/.
+You can find the documentation on https://qupath.github.io/qubalab-docs/.
 
 This project contains the QuBaLab package in the `qubalab` folder. Take a look at the *Installation* section to install it.
 
@@ -33,10 +33,18 @@ If you just want to go through them, look at the [documentation](https://qupath.
 
 ## Installation
 
-TODO when available on PyPI
+QuBaLab will live on PyPI soon, but for the time being you should install it from
+GitHub. You can do this directly using:
 
-Installing the package through PyPI will only give access to the Python library. If you want to run the notebooks or
-contribute to this project, take a look at the *Development* section.
+```bash
+pip install --upgrade https://github.com/qupath/qubalab/tarball/main
+```
+
+or if you have git installed:
+
+```bash
+pip install git+https://github.com/qupath/qubalab.git
+```
 
 ## Development
 
