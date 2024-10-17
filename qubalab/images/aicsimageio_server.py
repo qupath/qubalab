@@ -2,7 +2,8 @@ import numpy as np
 import dask.array as da
 import math
 from pathlib import Path
-from aicsimageio import AICSImage
+# from aicsimageio import AICSImage
+from bioio import BioImage
 from dataclasses import astuple
 from .image_server import ImageServer
 from .metadata.image_metadata import ImageMetadata
@@ -35,7 +36,7 @@ class AICSImageIoServer(ImageServer):
         """
         super().__init__(**kwargs)
         self._path = path
-        self._reader = AICSImage(path, dask_tiles=True, **aics_kwargs)
+        self._reader = BioImage(path, dask_tiles=True, **aics_kwargs)
         self._scene = scene
         self._detect_resolutions = detect_resolutions
 
@@ -73,7 +74,7 @@ class AICSImageIoServer(ImageServer):
         return self._reader.get_image_dask_data(axes)[t, z, :, y:y + height, x:x + width].compute()
 
     @staticmethod
-    def _get_shapes(reader: AICSImage, scene: int) -> tuple[ImageShape, ...]:
+    def _get_shapes(reader: BioImage, scene: int) -> tuple[ImageShape, ...]:
         shapes = []
         for scene in reader.scenes[scene:]:
             shape = AICSImageIoServer._get_scene_shape(reader, scene)
@@ -85,7 +86,7 @@ class AICSImageIoServer(ImageServer):
         return tuple(shapes)
 
     @staticmethod
-    def _get_scene_shape(reader: AICSImage, scene: int) -> ImageShape:
+    def _get_scene_shape(reader: BioImage, scene: int) -> ImageShape:
         reader.set_scene(scene)
 
         return ImageShape(
@@ -97,12 +98,12 @@ class AICSImageIoServer(ImageServer):
         )
 
     @staticmethod
-    def _get_pixel_calibration(reader: AICSImage, scene: int) -> PixelCalibration:
+    def _get_pixel_calibration(reader: BioImage, scene: int) -> PixelCalibration:
         reader.set_scene(scene)
         sizes = reader.physical_pixel_sizes
 
         if sizes.X or sizes.Y or sizes.Z:
-            # The AICSImage library does not currently handle unit attachment, so the pixel unit is returned
+            # The bioio library does not currently handle unit attachment, so the pixel unit is returned
             return PixelCalibration(
                 PixelLength(sizes.X) if sizes.X is not None else PixelLength(),
                 PixelLength(sizes.Y) if sizes.Y is not None else PixelLength(),
@@ -112,7 +113,7 @@ class AICSImageIoServer(ImageServer):
             return PixelCalibration()
     
     @staticmethod
-    def _is_rgb(reader: AICSImage, scene: int) -> bool:
+    def _is_rgb(reader: BioImage, scene: int) -> bool:
         reader.set_scene(scene)
         return ('S' in reader.dims.order and reader.dims.S in [3, 4]) or (reader.dtype == np.uint8 and reader.dims.C == 3)
 
