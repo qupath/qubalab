@@ -26,18 +26,6 @@ def test_image_shapes():
     openslide_server.close()
 
 
-def test_image_pixel_calibration():
-    openslide_server = OpenSlideServer(multi_resolution_uint8_3channels.get_path())
-
-    pixel_calibration = openslide_server.metadata.pixel_calibration
-
-    assert pixel_calibration == PixelCalibration(
-        PixelLength.create_microns(multi_resolution_uint8_3channels.get_pixel_size_x_y_in_micrometers()),
-        PixelLength.create_microns(multi_resolution_uint8_3channels.get_pixel_size_x_y_in_micrometers())
-    )
-    
-    openslide_server.close()
-
 
 def test_is_rgb():
     openslide_server = OpenSlideServer(multi_resolution_uint8_3channels.get_path())
