@@ -61,3 +61,10 @@ pip install -e ".[dev,test,openslide]"                  # install qubalab (-e me
 jupyter lab .                                           # to start the Jupyter notebooks
 pytest                                                  # to run unit tests
 ```
+
+## OpenSlide support
+
+OpenSlide support relies on having OpenSlide binaries installed at a system
+level. Therefore not all aspects of OpenSlide will work consistently across
+platforms, as the versions available from package managers or from OpenSlide
+directly may vary between operating systems.
