@@ -18,12 +18,10 @@ jobs:
         uses: actions/setup-python@v5
         
       - name: Install Openslide
-        run: |
-          sudo apt install openslide-tools
-          sudo apt install python3-openslide
+        run: sudo apt install openslide-tools
 
       - name: Install
-        run: pip install .[test]
+        run: pip install .[test, openslide]
 
       - name: Run tests
         run: pytest
