@@ -21,7 +21,7 @@ jobs:
         run: sudo apt install openslide-tools
 
       - name: Install
-        run: pip install .[test, openslide]
+        run: pip install .[test,openslide]
 
       - name: Run tests
         run: pytest
