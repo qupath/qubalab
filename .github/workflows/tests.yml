@@ -19,9 +19,12 @@ jobs:
       - name: Set up python
         id: setup-python
         uses: actions/setup-python@v5
+        
+      - name: Install Openslide
+        run: sudo apt install openslide-tools
 
       - name: Install
-        run: pip install .[test]
+        run: pip install .[test,openslide]
 
       - name: Run tests
         run: pytest
