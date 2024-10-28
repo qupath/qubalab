@@ -19,6 +19,8 @@ class OpenSlideServer(ImageServer):
     """
     An image server that relies on OpenSlide (https://openslide.org/) to read RGB images.
 
+    This server may only be able to detect the full resolution of a pyramidal image.
+
     OpenSlide provides some properties to define a rectangle bounding the non-empty region of the slide
     (see https://openslide.org/api/python/#standard-properties). If such properties are found, only this
     rectangle will be read (but note that this behaviour was not properly tested).

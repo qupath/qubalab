@@ -78,7 +78,9 @@ def _write_image(pixels: np.array):
             metadata=metadata,
             subifds=number_of_subresolutions,
             resolution=(number_of_pixels_per_cm, number_of_pixels_per_cm),
-            resolutionunit=3    # indicate that the resolution above is in cm^-1
+            resolutionunit=3,    # indicate that the resolution above is in cm^-1,
+            photometric='rgb',
+            tile=(128, 128)
         )
 
         # Write sub resolutions
@@ -89,7 +91,9 @@ def _write_image(pixels: np.array):
                     metadata=metadata,
                     subfiletype=1,      # indicate that the image is part of a multi-page image
                     resolution=(number_of_pixels_per_cm / downsample, number_of_pixels_per_cm / downsample),
-                    resolutionunit=3
+                    resolutionunit=3,
+                    photometric='rgb', 
+                    tile=(128, 128)
                 )
 
 
