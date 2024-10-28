@@ -8,7 +8,7 @@ The name comes from **Quantitative Bioimage Analysis Laboratory**.
 This is chosen to be reminiscent of QuPath (*Quantitative Pathology*),
 but recognizes that neither is really restricted to pathology.
 
-## Goals
+## Why use QuBaLab?
 
 QuBaLab isn't QuPath - they're just good friends.
 
@@ -28,13 +28,27 @@ for accessing images and representing objects in a GeoJSON compatible way.
 By using the same custom fields for things like measurements and classifications,
 exchanging data is much easier.
 
-[paquo](https://paquo.readthedocs.io/en/latest/index.html) is an existing library
-linking Python and QuPath that provides a pythonic interface to QuPath.
-It makes creating and working with QuPath projects intuitive and easy
-for Python programmers. We think paquo is great, and don't want to replace it!
-The linkage that QuBaLab provides between Python and QuPath is more
-resource-intensive and slow, with the tradeoff that it is (we hope) more
-convenient to dip in and out of.
+How does QuBaLab compare to paquo?
+
+paquo is an existing library linking Python and QuPath that provides a pythonic interface to QuPath.
+
+We think paquo is great, and don't want to replace it!
+
+Here are the 3 main differences as we see them:
+
+1. Target audience
+  - paquo is written mostly for Python programmers who need to work with QuPath data
+  - QuBaLab is written mostly for QuPath users who want to dip into Python
+2. Convenience vs. Efficiency
+  - paquo is based on JPype to provide full & efficient access to Java from Python
+  - QuBaLab is based on Py4J to exchange data between Java & Python - preferring convenience over efficiency
+3. Pixel access
+  - paquo is for working with QuPath projects and objects - accessing pixels is beyond its scope (at least for now)
+  - QuBaLab enables requesting pixels as numpy or dask arrays, and provides functions to convert between thresholded images & QuPath objects
+
+So if you're a Python programmer who needs an intuitive and efficient way to work with QuPath data, use paquo.
+
+But if you're a QuPath user who wants to switch to Python for some tasks, including image processing, you might want to give QuBaLab a try.
 
 ## Getting started
 
@@ -86,4 +100,6 @@ level. Therefore, not all aspects of OpenSlide will work consistently across
 platforms, as the versions available from package managers or from OpenSlide
 directly may vary between operating systems. We hope that this will be resolved
 shortly with the release of OpenSlide 4.0.0 binaries in the 
-[openslide-bin](https://pypi.org/project/openslide-bin/) package.
+[openslide-bin](https://pypi.org/project/openslide-bin/) package,
+and the release of [openslide-python](https://pypi.org/project/openslide-python/)
+1.4.0 which will use them.
