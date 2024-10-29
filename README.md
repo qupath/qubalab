@@ -1,26 +1,39 @@
 # QuBaLab
 
-This is a Python package for exploring quantitative bioimage analysis... *especially* (but not exclusively) in
-combination with QuPath (https://qupath.github.io/).
+This is a Python package for exploring quantitative bioimage analysis... *especially* (but not exclusively) in combination with QuPath (https://qupath.github.io/).
 
-The name comes from **Quantitative Bioimage Analysis Laboratory**.
-This is chosen to be reminiscent of QuPath (*Quantitative Pathology*), but recognizes that neither is really restricted
-to pathology.
+The name comes from **Quantitative Bioimage Analysis Laboratory**. This is chosen to be reminiscent of QuPath (*Quantitative Pathology*), but recognizes that neither is really restricted to pathology.
 
-## Goals
+## Why use QuBaLab?
 
 QuBaLab isn't QuPath - they're just good friends.
 
-* **QuPath** is a user-friendly Java application for bioimage analysis, which has some especially nice features for
-handling whole slide and highly-multiplexed images. But lots of bioimage analysis researcher is done in Python,
-and is hard to integrate with QuPath.
-* **QuBaLab**'s main aim is to help with this, by providing tools to help exchange data between QuPath and Python
-*without any direct dependency on QuPath and Java*. It therefore doesn't require QuPath to be installed, and
-can be used entirely from Python.
+* **QuPath** is a user-friendly Java application for bioimage analysis,     which has some especially nice features for handling whole slide and highly-multiplexed images. But lots of bioimage analysis research is done in Python, and is hard to integrate with QuPath.
+* **QuBaLab**'s main aim is to help with this, by providing tools to help exchange data between QuPath and Python *without any direct dependency on QuPath and Java*. It therefore doesn't require QuPath to be installed, and can be used entirely from Python.
 
-QuBaLab doesn't share code with QuPath, but is uses many of the same conventions for accessing images and
-representing objects in a GeoJSON-compatible way.
-By using the same custom fields for things like measurements and classifications, exchanging data is much easier.
+QuBaLab doesn't share code with QuPath, but is uses many of the same conventions for accessing images and representing objects in a GeoJSON compatible way. By using the same custom fields for things like measurements and classifications, exchanging data is much easier.
+
+### How does QuBaLab compare to paquo?
+
+paquo is an existing library linking Python and QuPath that provides a pythonic interface to QuPath.
+
+We think paquo is great, and don't want to replace it!
+
+Here are the 3 main differences as we see them:
+
+1. Target audience
+  - paquo is written mostly for Python programmers who need to work with QuPath data
+  - QuBaLab is written mostly for QuPath users who want to dip into Python
+2. Convenience vs. Efficiency
+  - paquo is based on JPype to provide full & efficient access to Java from Python
+  - QuBaLab is based on Py4J to exchange data between Java & Python - preferring convenience over efficiency
+3. Pixel access
+  - paquo is for working with QuPath projects and objects - accessing pixels is beyond its scope (at least for now)
+  - QuBaLab enables requesting pixels as numpy or dask arrays, and provides functions to convert between thresholded images & QuPath objects
+
+So if you're a Python programmer who needs an intuitive and efficient way to work with QuPath data, use paquo.
+
+But if you're a QuPath user who wants to switch to Python for some tasks, including image processing, you might want to give QuBaLab a try.
 
 ## Getting started
 
@@ -28,13 +41,11 @@ You can find the documentation on https://qupath.github.io/qubalab-docs/.
 
 This project contains the QuBaLab package in the `qubalab` folder. Take a look at the *Installation* section to install it.
 
-Some notebooks present in the `notebooks` folder show how to use the QuBaLab package. If you want to run them, you can take a look at the *Development* section.
-If you just want to go through them, look at the [documentation](https://qupath.github.io/qubalab-docs/notebooks.html).
+Some notebooks in the `notebooks` folder demonstrate how to use QuBaLab. If you want to run them, you can take a look at the *Development* section. If you just want to browse the content in them, look at the [documentation](https://qupath.github.io/qubalab/notebooks.html).
 
 ## Installation
 
-QuBaLab will live on PyPI soon, but for the time being you should install it from
-GitHub. You can do this directly using:
+QuBaLab will live on PyPI soon, but for the time being you should install it from GitHub. You can do this directly using:
 
 ```bash
 pip install --upgrade https://github.com/qupath/qubalab/tarball/main
@@ -64,7 +75,4 @@ pytest                                                  # to run unit tests
 
 ## OpenSlide support
 
-OpenSlide support relies on having OpenSlide binaries installed at a system
-level. Therefore not all aspects of OpenSlide will work consistently across
-platforms, as the versions available from package managers or from OpenSlide
-directly may vary between operating systems.
+OpenSlide support relies on having OpenSlide binaries installed at a system level. Therefore, not all aspects of OpenSlide will work consistently across platforms, as the versions available from package managers or from OpenSlide directly may vary between operating systems. We hope that this will be resolved shortly with the release of OpenSlide 4.0.0 binaries in the [openslide-bin](https://pypi.org/project/openslide-bin/) package, and the release of [openslide-python](https://pypi.org/project/openslide-python/) 1.4.0 which will use them.
