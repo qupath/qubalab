@@ -15,21 +15,21 @@ QuBaLab doesn't share code with QuPath, but is uses many of the same conventions
 
 ### How does QuBaLab compare to paquo?
 
-paquo is an existing library linking Python and QuPath that provides a pythonic interface to QuPath.
+[paquo](https://paquo.readthedocs.io/) is an existing library linking Python and QuPath that provides a pythonic interface to QuPath.
 
-We think paquo is great, and don't want to replace it!
+_We think paquo is great - we don't want to replace it!_
 
 Here are the 3 main differences as we see them:
 
-1. Target audience
-  - paquo is written mostly for Python programmers who need to work with QuPath data
-  - QuBaLab is written mostly for QuPath users who want to dip into Python
-2. Convenience vs. Efficiency
-  - paquo is based on JPype to provide full & efficient access to Java from Python
-  - QuBaLab is based on Py4J to exchange data between Java & Python - preferring convenience over efficiency
-3. Pixel access
-  - paquo is for working with QuPath projects and objects - accessing pixels is beyond its scope (at least for now)
-  - QuBaLab enables requesting pixels as numpy or dask arrays, and provides functions to convert between thresholded images & QuPath objects
+1. **Target audience**
+    - paquo is written mostly for Python programmers who need to work with QuPath data
+    - QuBaLab is written mostly for QuPath users who want to dip into Python
+2. **Convenience vs. Efficiency**
+    - paquo is based on [JPype](http://jpype.readthedocs.io/) to provide full & efficient access to Java from Python
+    - QuBaLab is based on [Py4J](https://www.py4j.org) to exchange data between Java & Python - preferring convenience over efficiency
+3. **Pixel access**
+    - paquo is for working with QuPath projects and objects - accessing pixels is beyond its scope (at least for now)
+    - QuBaLab enables requesting pixels as numpy or dask arrays, and provides functions to convert between thresholded images & QuPath objects
 
 So if you're a Python programmer who needs an intuitive and efficient way to work with QuPath data, use paquo.
 
