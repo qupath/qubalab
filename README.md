@@ -8,7 +8,7 @@ The name comes from **Quantitative Bioimage Analysis Laboratory**. This is chose
 
 QuBaLab isn't QuPath - they're just good friends.
 
-* **QuPath** is a user-friendly Java application for bioimage analysis,     which has some especially nice features for handling whole slide and highly-multiplexed images. But lots of bioimage analysis research is done in Python, and is hard to integrate with QuPath.
+* **QuPath** is a user-friendly Java application for bioimage analysis, which has some especially nice features for handling whole slide and highly-multiplexed images. But lots of bioimage analysis research is done in Python, and is hard to integrate with QuPath.
 * **QuBaLab**'s main aim is to help with this, by providing tools to help exchange data between QuPath and Python *without any direct dependency on QuPath and Java*. It therefore doesn't require QuPath to be installed, and can be used entirely from Python.
 
 QuBaLab doesn't share code with QuPath, but is uses many of the same conventions for accessing images and representing objects in a GeoJSON compatible way. By using the same custom fields for things like measurements and classifications, exchanging data is much easier.
@@ -26,7 +26,7 @@ Here are the 3 main differences as we see them:
     - QuBaLab is written mostly for QuPath users who want to dip into Python
 2. **Convenience vs. Efficiency**
     - paquo is based on [JPype](http://jpype.readthedocs.io/) to provide full & efficient access to Java from Python
-    - QuBaLab is based on [Py4J](https://www.py4j.org) to exchange data between Java & Python - preferring convenience over efficiency
+    - QuBaLab is based on [Py4J](https://www.py4j.org) to exchange data between Java & Python - preferring convenience to efficiency
 3. **Pixel access**
     - paquo is for working with QuPath projects and objects - accessing pixels is beyond its scope (at least for now)
     - QuBaLab enables requesting pixels as numpy or dask arrays, and provides functions to convert between thresholded images & QuPath objects
