@@ -95,8 +95,10 @@ class QuPathServer(ImageServer):
 
             self._gateway.entry_point.writeImageRegion(self._qupath_server, request, temp_path)
             image = bytes_to_image(temp_path, self.metadata.is_rgb, ImageShape(region.width, region.height, c=self.metadata.n_channels))
-
-            os.remove(temp_path)
+            ## on Windows, this fails because the file handle is open elsewhere
+            ## slightly bad manners to pollute tempfiles but should be insignificant
+            if not os.name == "nt":
+                os.remove(temp_path)
         else:
             format = 'png' if self.metadata.is_rgb else "imagej tiff"
 
