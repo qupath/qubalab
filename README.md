@@ -68,11 +68,7 @@ git clone https://github.com/qupath/qubalab.git         # clone this repository
 cd qubalab                                              # go to the project directory
 python -m venv ./.venv                                  # create a local virual environment
 source ./.venv/bin/activate                             # activate the venv
-pip install -e ".[dev,test,openslide]"                  # install qubalab (-e means changes are loaded dynamically)
+pip install -e ".[dev,test]"                  # install qubalab (-e means changes are loaded dynamically)
 jupyter lab .                                           # to start the Jupyter notebooks
 pytest                                                  # to run unit tests
 ```
-
-## OpenSlide support
-
-OpenSlide support relies on having OpenSlide binaries installed at a system level. Therefore, not all aspects of OpenSlide will work consistently across platforms, as the versions available from package managers or from OpenSlide directly may vary between operating systems. We hope that this will be resolved shortly with the release of OpenSlide 4.0.0 binaries in the [openslide-bin](https://pypi.org/project/openslide-bin/) package, and the release of [openslide-python](https://pypi.org/project/openslide-python/) 1.4.0 which will use them.
