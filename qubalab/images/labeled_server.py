@@ -34,7 +34,7 @@ class LabeledImageServer(ImageServer):
         """
         :param base_image_metadata: the metadata of the image containing the image features
         :param features: the image features to draw
-        :param label_map: a dictionnary mapping a classification to a label. The value of pixels where an image feature with
+        :param label_map: a dictionary mapping a classification to a label. The value of pixels where an image feature with
                           a certain classification is present will be taken from this dictionnary. If not provided, each feature
                           will be assigned a unique integer. All labels must be greater than 0 
         :param downsample: the downsample to apply to the image. Can be omitted to use the full resolution image
@@ -88,7 +88,7 @@ class LabeledImageServer(ImageServer):
                 self._base_image_metadata.pixel_calibration.length_z
             ),
             False,
-            bool if self._multichannel else np.uint
+            bool if self._multichannel else np.uint32
         )
 
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
@@ -113,9 +113,8 @@ class LabeledImageServer(ImageServer):
 
             return full_image
         else:
-            image = PIL.Image.new('P', (region.width, region.height))
+            image = PIL.Image.new('I', (region.width, region.height))
             drawing_context = PIL.ImageDraw.Draw(image)
-
             for i in self._tree.query(region.geometry):
                 draw_geometry(
                     image.size,
@@ -123,5 +122,4 @@ class LabeledImageServer(ImageServer):
                     self._geometries[i],
                     self._feature_index_to_label[i]
                 )
-
             return np.expand_dims(np.asarray(image, dtype=self.metadata.dtype), axis=0)

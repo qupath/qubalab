@@ -70,7 +70,6 @@ class ImageServer(ABC):
                  pixel located at coordinates [x, y] on the image
         :raises ValueError: when the region to read is not specified
         """
-
         if region is None:
             region = Region2D(x=x, y=y, width=width, height=height, z=z, t=t)
         elif isinstance(region, tuple):

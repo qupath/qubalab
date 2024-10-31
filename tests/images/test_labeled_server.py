@@ -183,7 +183,7 @@ def test_x_pixel_length_with_no_downsample():
 
 
 def test_dtype_when_not_multi_channel():
-    expected_dtype = np.uint
+    expected_dtype = np.uint32
     labeled_server = LabeledImageServer(sample_metadata, [], multichannel=False)
 
     dtype = labeled_server.metadata.dtype
@@ -381,3 +381,13 @@ def test_read_polygon_in_single_channel_image_without_label_map_with_downsample(
     image = labeled_server.read_region(1, Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height))
 
     np.testing.assert_array_equal(image, expected_image)
+
+def test_label_can_hold_many_values():
+    downsample = 2
+    n_objects = 1000
+    features = [ImageFeature(geojson.Polygon([[(6, 2), (8, 2), (8, 4), (4, 4)]]), Classification("Some classification")) for i in range(n_objects)]
+    labeled_server = LabeledImageServer(sample_metadata, features, multichannel=False, downsample=downsample)
+
+    image = labeled_server.read_region(1, Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height))
+
+    assert np.max(image), n_objects
