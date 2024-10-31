@@ -35,7 +35,7 @@ class BioIOServer(ImageServer):
         """
         super().__init__(**kwargs)
         self._path = path
-        self._reader = BioImage(path, dask_tiles=True, **bioio_kwargs)
+        self._reader = BioImage(path, **bioio_kwargs)
         self._scene = scene
         self._detect_resolutions = detect_resolutions
 
