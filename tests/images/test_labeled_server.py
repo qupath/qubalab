@@ -384,9 +384,10 @@ def test_read_polygon_in_single_channel_image_without_label_map_with_downsample(
 
 def test_label_can_hold_many_values():
     downsample = 2
-    features = [ImageFeature(geojson.Polygon([[(6, 2), (8, 2), (8, 4), (4, 4)]]), Classification("Some classification")) for i in range(1000)]
+    n_objects = 1000
+    features = [ImageFeature(geojson.Polygon([[(6, 2), (8, 2), (8, 4), (4, 4)]]), Classification("Some classification")) for i in range(n_objects)]
     labeled_server = LabeledImageServer(sample_metadata, features, multichannel=False, downsample=downsample)
 
     image = labeled_server.read_region(1, Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height))
 
-    assert np.max(image), 1000
+    assert np.max(image), n_objects
