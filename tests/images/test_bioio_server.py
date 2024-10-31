@@ -218,8 +218,6 @@ def test_read_float_5d_image_with_dask():
 
 
 
-## start
-
 def test_float_5d_zarr_image_name():
     bioio_server = BioIOServer(single_resolution_float_5d_zarr.get_path())
 
