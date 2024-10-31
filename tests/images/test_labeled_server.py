@@ -1,5 +1,6 @@
 import geojson
 import numpy as np
+import random
 from qubalab.objects.image_feature import ImageFeature
 from qubalab.objects.classification import Classification
 from qubalab.images.labeled_server import LabeledImageServer
@@ -20,6 +21,18 @@ sample_metadata = ImageMetadata(
     True,
     np.uint8
 )
+large_metadata = ImageMetadata(
+    "/path/to/img.tiff",
+    "Image name",
+    (ImageShape(1000, 500),),
+    PixelCalibration(
+        PixelLength.create_microns(2.5),
+        PixelLength.create_microns(2.5)
+    ),
+    True,
+    np.uint8
+)
+
 
 
 def test_image_width_with_downsample():
@@ -383,11 +396,22 @@ def test_read_polygon_in_single_channel_image_without_label_map_with_downsample(
     np.testing.assert_array_equal(image, expected_image)
 
 def test_label_can_hold_many_values():
-    downsample = 2
-    n_objects = 1000
-    features = [ImageFeature(geojson.Polygon([[(6, 2), (8, 2), (8, 4), (4, 4)]]), Classification("Some classification")) for i in range(n_objects)]
-    labeled_server = LabeledImageServer(sample_metadata, features, multichannel=False, downsample=downsample)
+    downsample = 1
+    max_objects = 500
+    random.seed(42)
+    def rands():
+        return (
+            random.randint(0, int(sample_metadata.shape.x / downsample)),
+            random.randint(0, int(sample_metadata.shape.y / downsample))
+        )
+    
+    coords = [(rands(), rands(), rands(), rands()) for i in range(max_objects)]
+    coords = list(set(coords))
+
+    n_objects = len(coords)
+    features = [ImageFeature(geojson.Polygon([coords[i]]), Classification("Some classification")) for i in range(n_objects)]
+    labeled_server = LabeledImageServer(large_metadata, features, multichannel=False, downsample=downsample)
 
     image = labeled_server.read_region(1, Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height))
 
-    assert np.max(image), n_objects
+    assert np.max(image) > 255
