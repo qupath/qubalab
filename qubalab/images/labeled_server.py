@@ -88,7 +88,8 @@ class LabeledImageServer(ImageServer):
                 self._base_image_metadata.pixel_calibration.length_z
             ),
             False,
-            bool if self._multichannel else np.uint32
+            bool if self._multichannel else np.uint32,
+            downsamples = [self._downsample]
         )
 
     def _read_block(self, level: int, region: Region2D) -> np.ndarray:
