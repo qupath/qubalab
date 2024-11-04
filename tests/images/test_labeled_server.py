@@ -70,7 +70,7 @@ def test_image_width_with_no_downsample():
     labeled_server.close()
 
 
-def test_image_width_with_no_downsample():
+def test_image_height_with_no_downsample():
     expected_height = sample_metadata.shape.y
     labeled_server = LabeledImageServer(sample_metadata, [])
 
