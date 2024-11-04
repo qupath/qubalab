@@ -24,7 +24,7 @@ sample_metadata = ImageMetadata(
 large_metadata = ImageMetadata(
     "/path/to/img.tiff",
     "Image name",
-    (ImageShape(1000, 500),),
+    (ImageShape(500, 250),),
     PixelCalibration(
         PixelLength.create_microns(2.5),
         PixelLength.create_microns(2.5)
@@ -397,16 +397,19 @@ def test_read_polygon_in_single_channel_image_without_label_map_with_downsample(
 
 def test_label_can_hold_many_values():
     downsample = 1
-    max_objects = 500
-    random.seed(42)
+    max_objects = 1000
+    random.seed(1)
     def rands():
+        x = random.randint(0, int(large_metadata.shape.x / downsample))
+        y = random.randint(0, int(large_metadata.shape.x / downsample))
         return (
-            random.randint(0, int(sample_metadata.shape.x / downsample)),
-            random.randint(0, int(sample_metadata.shape.y / downsample))
+            (x, y),
+            (x + 1, y),
+            (x + 1, y + 1),
+            (x, y + 1)
         )
     
-    coords = [(rands(), rands(), rands(), rands()) for i in range(max_objects)]
-    coords = list(set(coords))
+    coords = [rands() for i in range(max_objects)]
 
     n_objects = len(coords)
     features = [ImageFeature(geojson.Polygon([coords[i]]), Classification("Some classification")) for i in range(n_objects)]
@@ -414,4 +417,99 @@ def test_label_can_hold_many_values():
 
     image = labeled_server.read_region(1, Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height))
 
-    assert np.max(image) > 255
+    assert np.max(image) == max_objects
+
+
+def test_single_channel_labeled_image_with_region_request():
+    downsample = 1
+    features = [ImageFeature(geojson.LineString([(7, 5), (9, 5)]))]
+    expected_image = np.array(
+        [[[0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0],
+          [0, 0, 1, 1, 1]]]
+    )
+    labeled_server = LabeledImageServer(sample_metadata, features, multichannel=False, downsample=downsample)
+    region = Region2D(5, 3, labeled_server.metadata.width-5, labeled_server.metadata.height-3)
+    image = labeled_server.read_region(1, region)
+
+    np.testing.assert_array_equal(image, expected_image)
+
+def test_single_channel_labeled_image_with_starting_downsample():
+    features = [ImageFeature(geojson.LineString([(6, 5), (9, 5)]))]
+    expected_image = np.array(
+        [[[0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0],
+          [0, 0, 0, 1, 1]]]
+    )
+    labeled_server = LabeledImageServer(sample_metadata, features, multichannel=False, downsample=1)
+    downsample = 2
+    region = Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height)
+    image = labeled_server.read_region(downsample, region)
+
+    np.testing.assert_array_equal(image, expected_image)
+
+
+def test_single_channel_labeled_image_with_request_downsample():
+    features = [ImageFeature(geojson.LineString([(6, 5), (9, 5)]))]
+    expected_image = np.array(
+        [[[0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0],
+          [0, 0, 0, 1, 1]]]
+    )
+    downsample = 2
+    labeled_server = LabeledImageServer(sample_metadata, features, multichannel=False, downsample=downsample)
+    region = Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height)
+    image = labeled_server.read_region(1, region)
+
+    np.testing.assert_array_equal(image, expected_image)
+
+
+def test_multi_channel_labeled_image_with_region_request():
+    downsample = 1
+    features = [ImageFeature(geojson.LineString([(7, 5), (9, 5)]))]
+    expected_image = np.array(
+        [[[False, False, False, False, False],
+          [False, False, False, False, False],
+          [False, False, False, False, False]],
+          [[False, False, False, False, False],
+          [False, False, False, False, False],
+          [False, False, True, True, True]]]
+    )
+    labeled_server = LabeledImageServer(sample_metadata, features, multichannel=True, downsample=downsample)
+    region = Region2D(5, 3, labeled_server.metadata.width-5, labeled_server.metadata.height-3)
+    image = labeled_server.read_region(1, region)
+    np.testing.assert_array_equal(image, expected_image)
+
+def test_multi_channel_labeled_image_with_starting_downsample():
+    features = [ImageFeature(geojson.LineString([(6, 5), (9, 5)]))]
+    expected_image = np.array(
+        [[[False, False, False, False, False],
+          [False, False, False, False, False],
+          [False, False, False, False, False]],
+          [[False, False, False, False, False],
+          [False, False, False, False, False],
+          [False, False, False, True, True]]]
+    )
+    downsample = 2
+    labeled_server = LabeledImageServer(sample_metadata, features, multichannel=True, downsample=downsample)
+    region = Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height)
+    image = labeled_server.read_region(1, region)
+
+    np.testing.assert_array_equal(image, expected_image)
+
+def test_multi_channel_labeled_image_with_request_downsample():
+    features = [ImageFeature(geojson.LineString([(6, 5), (9, 5)]))]
+    expected_image = np.array(
+        [[[False, False, False, False, False],
+          [False, False, False, False, False],
+          [False, False, False, False, False]],
+          [[False, False, False, False, False],
+          [False, False, False, False, False],
+          [False, False, False, True, True]]]
+    )
+    labeled_server = LabeledImageServer(sample_metadata, features, multichannel=True, downsample=1)
+    downsample = 2
+    region = Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height)
+    image = labeled_server.read_region(downsample, region)
+
+    np.testing.assert_array_equal(image, expected_image)
