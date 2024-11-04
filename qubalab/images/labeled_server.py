@@ -106,7 +106,7 @@ class LabeledImageServer(ImageServer):
                         draw_geometry(
                             image.size,
                             drawing_context,
-                            self._geometries[i],
+                            shapely.affinity.translate(self._geometries[i], -region.x, -region.y),
                             1
                         )
                 full_image[label, :, :] = np.asarray(image, dtype=self.metadata.dtype)
@@ -119,7 +119,7 @@ class LabeledImageServer(ImageServer):
                 draw_geometry(
                     image.size,
                     drawing_context,
-                    self._geometries[i],
+                    shapely.affinity.translate(self._geometries[i], -region.x, -region.y),
                     self._feature_index_to_label[i]
                 )
             return np.expand_dims(np.asarray(image, dtype=self.metadata.dtype), axis=0)
