@@ -409,10 +409,7 @@ def test_label_can_hold_many_values():
             (x, y + 1)
         )
     
-    coords = [rands() for i in range(max_objects)]
-
-    n_objects = len(coords)
-    features = [ImageFeature(geojson.Polygon([coords[i]]), Classification("Some classification")) for i in range(n_objects)]
+    features = [ImageFeature(geojson.Polygon([rands()])) for i in range(max_objects)]
     labeled_server = LabeledImageServer(large_metadata, features, multichannel=False, downsample=downsample)
 
     image = labeled_server.read_region(1, Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height))
