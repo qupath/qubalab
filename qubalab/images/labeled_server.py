@@ -29,6 +29,7 @@ class LabeledImageServer(ImageServer):
         label_map: dict[Classification, int] = None,
         downsample: float = None,
         multichannel: bool = False,
+        resize_method = PIL.Image.Resampling.NEAREST,
         **kwargs
     ):
         """
@@ -45,7 +46,7 @@ class LabeledImageServer(ImageServer):
         :param resize_method: the resampling method to use when resizing the image for downsampling. Bicubic by default
         :raises ValueError: when a label in label_map is less than or equal to 0
         """
-        super().__init__(**kwargs)
+        super().__init__(resize_method=resize_method, **kwargs)
 
         if label_map is not None and any(label <= 0 for label in label_map.values()):
             raise ValueError('A label in label_map is less than or equal to 0: ' + str(label_map))
@@ -70,19 +71,19 @@ class LabeledImageServer(ImageServer):
             self._base_image_metadata.path,
             f'{self._base_image_metadata.name} - labels',
             (ImageShape(
-                int(self._base_image_metadata.width / self._downsample),
-                int(self._base_image_metadata.height / self._downsample),
+                int(self._base_image_metadata.width),
+                int(self._base_image_metadata.height),
                 1,
                 max(self._feature_index_to_label.values(), default=0)+1 if self._multichannel else 1,
                 1,
             ),),
             PixelCalibration(
                 PixelLength(
-                    self._base_image_metadata.pixel_calibration.length_x.length * self._downsample,
+                    self._base_image_metadata.pixel_calibration.length_x.length,
                     self._base_image_metadata.pixel_calibration.length_x.unit
                 ),
                 PixelLength(
-                    self._base_image_metadata.pixel_calibration.length_y.length * self._downsample,
+                    self._base_image_metadata.pixel_calibration.length_y.length,
                     self._base_image_metadata.pixel_calibration.length_y.unit
                 ),
                 self._base_image_metadata.pixel_calibration.length_z

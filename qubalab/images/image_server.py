@@ -294,6 +294,8 @@ class ImageServer(ABC):
                     pilImage = Image.fromarray(image)
                 elif np.issubdtype(image.dtype, np.integer):
                     pilImage = Image.fromarray(image.astype(np.int32), mode='I')
+                elif np.issubdtype(image.dtype, np.bool_):
+                    pilImage = Image.fromarray(image, "1")
                 else:
                     pilImage = Image.fromarray(image.astype(np.float32), mode='F')
                 pilImage = ImageServer._resize(pilImage, target_size=target_size, resample=resample)
