@@ -1,7 +1,6 @@
 import geojson
 import numpy as np
 import random
-from PIL import Image
 from qubalab.objects.image_feature import ImageFeature
 from qubalab.objects.classification import Classification
 from qubalab.images.labeled_server import LabeledImageServer
@@ -442,7 +441,7 @@ def test_single_channel_labeled_image_with_starting_downsample():
           [0, 0, 0, 0, 0],
           [0, 0, 0, 1, 1]]]
     )
-    labeled_server = LabeledImageServer(sample_metadata, features, multichannel=False, downsample=1,resize_method = Image.Resampling.NEAREST)
+    labeled_server = LabeledImageServer(sample_metadata, features, multichannel=False, downsample=1)
     downsample = 2
     region = Region2D(0, 0, labeled_server.metadata.width, labeled_server.metadata.height)
     image = labeled_server.read_region(downsample, region)
