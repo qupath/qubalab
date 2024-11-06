@@ -43,7 +43,7 @@ class LabeledImageServer(ImageServer):
                              integers representing a label (see the label_map parameter). If True, the number of channels will be
                              equal to the highest label value + 1, and the pixel located at (c, y, x) is a boolean indicating if an annotation
                              with label c is present on the pixel located at (x, y)
-        :param resize_method: the resampling method to use when resizing the image for downsampling. Bicubic by default
+        :param resize_method: the resampling method to use when resizing the image for downsampling. Nearest neighbour by default for labeled images.
         :raises ValueError: when a label in label_map is less than or equal to 0
         """
         super().__init__(resize_method=resize_method, **kwargs)
