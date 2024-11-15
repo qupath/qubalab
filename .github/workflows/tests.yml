@@ -37,6 +37,7 @@ jobs:
           genbadge tests -i reports/junit/junit.xml
 
       - name: Upload badges and reports to github actions
+        if: github.ref_name == 'main'
         run: |
           mkdir -p badges
           mv *badge.svg badges
@@ -46,18 +47,21 @@ jobs:
           ## test badge links
 
       - name: Setup Temporary Directory
+        if: github.ref_name == 'main'
         run: |
           mkdir gh-pages
-          cp -R badges gh-pages/
-          cp -R reports gh-pages/
+          mv badges gh-pages/
+          mv reports gh-pages/
 
       - name: Clone Target Repository
+        if: github.ref_name == 'main'
         run: |
           git clone --branch=gh-pages https://${{ secrets.TARGET_REPO_ACCESS_TOKEN }}@github.com/alanocallaghan/badges.git badges
           cp -R gh-pages/* target_repo/
 
       # Push changes to the target repository
       - name: Deploy to gh-pages
+        if: github.ref_name == 'main'
         run: |
           cd target_repo
           git config user.name "github-actions[bot]"
