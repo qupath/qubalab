@@ -24,9 +24,44 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-        
+
       - name: Install
         run: pip install .[test]
 
-      - name: Run tests
-        run: pytest
+      - name: Run tests and create reports and badges
+        run: |
+          coverage run -m pytest --junitxml=reports/junit/junit.xml --html=reports/junit/report.html
+          coverage xml -o reports/coverage/coverage.xml
+          coverage html -d reports/coverage/
+          genbadge coverage -i reports/coverage/coverage.xml
+          genbadge tests -i reports/junit/junit.xml
+
+      - name: Upload badges and reports to github actions
+        run: |
+          mkdir -p badges
+          mv *badge.svg badges
+          ## todo:
+          ## upload badges and reports to github pages
+          ## link to badges in readme
+          ## test badge links
+
+      - name: Setup Temporary Directory
+        run: |
+          mkdir gh-pages
+          cp -R badges gh-pages/
+          cp -R reports gh-pages/
+
+      - name: Clone Target Repository
+        run: |
+          git clone --branch=gh-pages https://${{ secrets.TARGET_REPO_ACCESS_TOKEN }}@github.com/alanocallaghan/badges.git badges
+          cp -R gh-pages/* target_repo/
+
+      # Push changes to the target repository
+      - name: Deploy to gh-pages
+        run: |
+          cd target_repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Update badges and reports"
+          git push
