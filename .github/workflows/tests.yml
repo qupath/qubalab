@@ -57,7 +57,7 @@ jobs:
         if: github.ref_name == 'main'
         run: |
           git clone --branch=gh-pages https://${{ secrets.TARGET_REPO_ACCESS_TOKEN }}@github.com/alanocallaghan/badges.git badges
-          cp -R gh-pages/* target_repo/
+          cp -R gh-pages/* badges/
 
       # Push changes to the target repository
       - name: Deploy to gh-pages
