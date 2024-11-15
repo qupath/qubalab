@@ -1,5 +1,6 @@
 [![Coverage](https://alanocallaghan.github.io/badges/badges/coverage-badge.svg?dummy=1234)](https://alanocallaghan.github.io/badges/reports/coverage/index.html?dummy=1234)
 [![Tests](https://alanocallaghan.github.io/badges/badges/tests-badge.svg?dummy=1234)](https://alanocallaghan.github.io/badges/reports/junit/report.html?dummy=1234)
+![Actions](https://github.com/alanocallaghan/qubalab/actions/workflows/main.yml/badge.svg?dummy=1234)
 # QuBaLab
 
 
