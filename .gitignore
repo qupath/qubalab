@@ -138,3 +138,5 @@ dmypy.json
 # Generated test images
 *.tif
 *.zarr
+reports
+*.svg
