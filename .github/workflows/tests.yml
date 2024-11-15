@@ -1,6 +1,6 @@
 # This workflow will run unit tests on pull requests or when manually activated
 
-name: test
+name: pytest
 
 on:
   push:
@@ -32,6 +32,8 @@ jobs:
         run: |
           coverage run -m pytest --junitxml=reports/junit/junit.xml --html=reports/junit/report.html
 
+
+      ## everything from here deals with generating and uploading reports and badges to a separate "badges" repo.
       - name: Create reports and badges
         if: github.ref_name == 'main' && matrix.os == 'ubuntu-latest'
         run: |
@@ -57,7 +59,7 @@ jobs:
       - name: Clone Target Repository
         if: github.ref_name == 'main' && matrix.os == 'ubuntu-latest'
         run: |
-            git clone --branch=gh-pages https://${{ secrets.TARGET_REPO_ACCESS_TOKEN }}@github.com/alanocallaghan/badges.git badges
+            git clone --branch=gh-pages https://${{ secrets.TARGET_REPO_ACCESS_TOKEN }}@github.com/qupath/badges.git badges
             ## cba handling merging or dealing with stale resources
             rm -r badges/${{ github.event.repository.name }}
             mkdir -p badges/${{ github.event.repository.name }}
