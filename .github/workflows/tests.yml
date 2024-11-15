@@ -1,4 +1,4 @@
-# This workflow will run unit tests on pull requests or when manually activated
+# This workflow will run unit tests when main is updated, on pull requests or when manually activated
 
 name: pytest
 
