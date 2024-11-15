@@ -61,7 +61,7 @@ jobs:
         run: |
             git clone --branch=gh-pages https://${{ secrets.TARGET_REPO_ACCESS_TOKEN }}@github.com/qupath/badges.git badges
             ## cba handling merging or dealing with stale resources
-            rm -r badges/${{ github.event.repository.name }}
+            rm -rf badges/${{ github.event.repository.name }}
             mkdir -p badges/${{ github.event.repository.name }}
             mv assets/* badges/${{github.event.repository.name}}/
 
