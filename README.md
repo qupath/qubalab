@@ -1,5 +1,5 @@
-[![Coverage](https://qupath.github.io/badges/badges/coverage-badge.svg?dummy=1234)](https://qupath.github.io/badges/reports/coverage/index.html?dummy=1234)
-[![Tests](https://qupath.github.io/badges/badges/tests-badge.svg?dummy=1234)](https://qupath.github.io/badges/reports/junit/report.html?dummy=1234)
+[![Coverage](https://qupath.github.io/badges/qubalab/badges/coverage-badge.svg?dummy=1234)](https://qupath.github.io/badges/qubalab/reports/coverage/index.html?dummy=1234)
+[![Tests](https://qupath.github.io/badges/qubalab/badges/tests-badge.svg?dummy=1234)](https://qupath.github.io/badges/qubalab/reports/junit/report.html?dummy=1234)
 ![Actions](https://github.com/qupath/qubalab/actions/workflows/tests.yml/badge.svg?dummy=1234)
 # QuBaLab
 
