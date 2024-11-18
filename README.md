@@ -6,7 +6,7 @@
 > # :warning: Important! 
 > * :new: **This is a new Python package for interacting with QuPath**!
 > * :construction: **It's still being developed and is not yet available on PyPi or conda - it's currently intended only for testing**
-> * :computer: **For a stable, established solution, check out [paquo](https://github.com/Bayer-Group/paquo/) (although we aim to fulfil different niches, see below)**
+> * :computer: **For a stable, established solution, check out [paquo](https://github.com/Bayer-Group/paquo/) (although we aim to meet different needs, see below)**
 > * :bug: **Please report any bugs through the [issues page](https://github.com/qupath/qubalab/issues)**
 
 
