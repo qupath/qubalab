@@ -59,7 +59,7 @@ jobs:
       - name: Clone badges repo
         if: github.ref_name == 'main' && matrix.os == 'ubuntu-latest'
         run: |
-            git clone --branch=gh-pages https://${{ secrets.TARGET_REPO_ACCESS_TOKEN }}@github.com/qupath/badges.git badges
+            git clone --branch=gh-pages https://${{ secrets.BADGES_ACCESS_TOKEN }}@github.com/qupath/badges.git badges
             ## cba handling merging or dealing with stale resources
             rm -rf badges/${{ github.event.repository.name }}
             mkdir -p badges/${{ github.event.repository.name }}
