@@ -1,16 +1,16 @@
+# QuBaLab
+
 [![Coverage](https://qupath.github.io/badges/qubalab/badges/coverage-badge.svg?dummy=1234)](https://qupath.github.io/badges/qubalab/reports/coverage/index.html?dummy=1234)
 [![Tests](https://qupath.github.io/badges/qubalab/badges/tests-badge.svg?dummy=1234)](https://qupath.github.io/badges/qubalab/reports/junit/report.html?dummy=1234)
 ![Actions](https://github.com/qupath/qubalab/actions/workflows/tests.yml/badge.svg?dummy=1234)
-# QuBaLab
 
-> # :warning: Important! 
-> * :new: **This is a new Python package for interacting with QuPath**!
-> * :construction: **It's still being developed and is not yet available on PyPi or conda - it's currently intended only for testing**
-> * :computer: **For a stable, established solution, check out [paquo](https://github.com/Bayer-Group/paquo/) (although we aim to meet different needs, see below)**
-> * :bug: **Please report any bugs through the [issues page](https://github.com/qupath/qubalab/issues)**
+> ## ⚠️ Important
+>
+> * 🆕  **This is a new Python package for interacting with QuPath**!
+> * 💻 **For a stable, established solution, check out [paquo](https://github.com/Bayer-Group/paquo/) (although we aim to meet different needs, see below)**
+> * 🐛 **Please report any bugs through the [issues page](https://github.com/qupath/qubalab/issues)**
 
-
-This is a Python package for exploring quantitative bioimage analysis... *especially* (but not exclusively) in combination with QuPath (https://qupath.github.io/).
+This is a Python package for exploring quantitative bioimage analysis... *especially* (but not exclusively) in combination with [QuPath](https://qupath.github.io/).
 
 The name comes from **Quantitative Bioimage Analysis Laboratory**. This is chosen to be reminiscent of QuPath (*Quantitative Pathology*), but recognizes that neither is really restricted to pathology.
 
@@ -27,19 +27,19 @@ QuBaLab doesn't share code with QuPath, but is uses many of the same conventions
 
 [paquo](https://paquo.readthedocs.io/) is an existing library linking Python and QuPath that provides a pythonic interface to QuPath.
 
-_We think paquo is great - we don't want to replace it!_
+*We think paquo is great - we don't want to replace it!*
 
 Here are the 3 main differences as we see them:
 
 1. **Target audience**
-    - paquo is written mostly for Python programmers who need to work with QuPath data
-    - QuBaLab is written mostly for QuPath users who want to dip into Python
+    * paquo is written mostly for Python programmers who need to work with QuPath data
+    * QuBaLab is written mostly for QuPath users who want to dip into Python
 2. **Convenience vs. Efficiency**
-    - paquo is based on [JPype](http://jpype.readthedocs.io/) to provide full & efficient access to Java from Python
-    - QuBaLab is based on [Py4J](https://www.py4j.org) to exchange data between Java & Python - preferring convenience to efficiency
+    * paquo is based on [JPype](http://jpype.readthedocs.io/) to provide full & efficient access to Java from Python
+    * QuBaLab is based on [Py4J](https://www.py4j.org) to exchange data between Java & Python - preferring convenience to efficiency
 3. **Pixel access**
-    - paquo is for working with QuPath projects and objects - accessing pixels is beyond its scope (at least for now)
-    - QuBaLab enables requesting pixels as numpy or dask arrays, and provides functions to convert between thresholded images & QuPath objects
+    * paquo is for working with QuPath projects and objects - accessing pixels is beyond its scope (at least for now)
+    * QuBaLab enables requesting pixels as numpy or dask arrays, and provides functions to convert between thresholded images & QuPath objects
 
 So if you're a Python programmer who needs an intuitive and efficient way to work with QuPath data, use paquo.
 
@@ -47,7 +47,7 @@ But if you're a QuPath user who wants to switch to Python for some tasks, includ
 
 ## Getting started
 
-You can find the documentation on https://qupath.github.io/qubalab-docs/.
+You can find the documentation on [github pages](https://qupath.github.io/qubalab-docs/).
 
 This project contains the QuBaLab package in the `qubalab` folder. Take a look at the *Installation* section to install it.
 
@@ -55,16 +55,10 @@ Some notebooks in the `notebooks` folder demonstrate how to use QuBaLab. If you 
 
 ## Installation
 
-QuBaLab will live on PyPI soon, but for the time being you should install it from GitHub. You can do this directly using:
+QuBaLab is on PyPI, so you can install it with pip:
 
 ```bash
-pip install --upgrade https://github.com/qupath/qubalab/tarball/main
-```
-
-or if you have git installed:
-
-```bash
-pip install git+https://github.com/qupath/qubalab.git
+pip install --upgrade qubalab
 ```
 
 ## Development
