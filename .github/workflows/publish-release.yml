@@ -51,7 +51,7 @@ jobs:
 
     # Dedicated environments with protections for publishing are strongly recommended.
     environment:
-      name: testing
+      name: release
       # OPTIONAL: uncomment and update to include your PyPI project URL in the deployment status:
       # url: https://pypi.org/p/YOURPROJECT
 
