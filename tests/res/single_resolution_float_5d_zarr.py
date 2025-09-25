@@ -51,7 +51,9 @@ def _write_image(pixels: np.array):
     if os.path.exists(get_path()) and os.path.isdir(get_path()):
         shutil.rmtree(get_path())
 
-    zarr = bioio.writers.OMEZarrWriter(get_path())
+    zarr = bioio.writers.OMEZarrWriter(
+        get_path(), dtype=get_dtype(), shape=get_shapes()[0]
+    )
     zarr.write_image(
         image_data=pixels,
         image_name="single_resolution_float_5d",
