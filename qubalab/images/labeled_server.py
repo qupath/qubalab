@@ -1,7 +1,7 @@
 import numpy as np
-from typing import Iterable
+from typing import Iterable, Optional
 import shapely
-import PIL
+from PIL import Image, ImageDraw
 from .image_server import ImageServer
 from .metadata.image_metadata import ImageMetadata
 from .metadata.image_shape import ImageShape
@@ -27,10 +27,10 @@ class LabeledImageServer(ImageServer):
         self,
         base_image_metadata: ImageMetadata,
         features: Iterable[ImageFeature],
-        label_map: dict[Classification, int] = None,
-        downsample: float = None,
-        multichannel: bool = False,
-        resize_method=PIL.Image.Resampling.NEAREST,
+        label_map: Optional[dict[Classification, int]] = None,
+        downsample: Optional[float] = None,
+        multichannel: Optional[bool] = False,
+        resize_method=Image.Resampling.NEAREST,
         **kwargs,
     ):
         """
@@ -111,7 +111,7 @@ class LabeledImageServer(ImageServer):
                 self._base_image_metadata.pixel_calibration.length_z,
             ),
             False,
-            bool if self._multichannel else np.uint32,
+            np.bool if self._multichannel else np.uint32,
             downsamples=[self._downsample],
         )
 
@@ -125,8 +125,8 @@ class LabeledImageServer(ImageServer):
             labels = set(self._feature_index_to_label.values())
 
             for label in labels:
-                image = PIL.Image.new("1", (region.width, region.height))
-                drawing_context = PIL.ImageDraw.Draw(image)
+                image = Image.new("1", (region.width, region.height))
+                drawing_context = ImageDraw.Draw(image)
 
                 for i in feature_indices:
                     if label == self._feature_index_to_label[i]:
@@ -142,8 +142,8 @@ class LabeledImageServer(ImageServer):
 
             return full_image
         else:
-            image = PIL.Image.new("I", (region.width, region.height))
-            drawing_context = PIL.ImageDraw.Draw(image)
+            image = Image.new("I", (region.width, region.height))
+            drawing_context = ImageDraw.Draw(image)
             for i in self._tree.query(region.geometry):
                 draw_geometry(
                     image.size,

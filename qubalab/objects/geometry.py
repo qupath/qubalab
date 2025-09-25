@@ -1,6 +1,6 @@
 import geojson.geometry
 import geojson
-from typing import Union
+from typing import Union, Optional
 
 
 class ImagePlane(dict):
@@ -22,18 +22,18 @@ class ImagePlane(dict):
             raise AttributeError(name)
 
     def __setattr__(self, name, value):
-        raise AttributeError('ImagePlane is immutable')
+        raise AttributeError("ImagePlane is immutable")
 
     def __delattr__(self, name):
-        raise AttributeError('ImagePlane is immutable')
+        raise AttributeError("ImagePlane is immutable")
 
 
 def add_plane_to_geometry(
-        geometry: Union[geojson.geometry.Geometry, geojson.Feature],
-        z: int = None,
-        t: int = None,
-        preferred_geometry_key: str =None
-) -> geojson.geometry.Geometry:
+    geometry: Union[geojson.geometry.Geometry, geojson.Feature],
+    z: Optional[int] = None,
+    t: Optional[int] = None,
+    preferred_geometry_key: Optional[str] = None,
+) -> Union[geojson.geometry.Geometry]:
     """
     Create a GeoJSON Geometry object with an additional 'plane' property containing z and t indices.
 
@@ -55,23 +55,36 @@ def add_plane_to_geometry(
     """
     if geometry is None:
         return None
-    
-    if geometry['type'] == 'Feature':
+
+    if geometry["type"] == "Feature":
         feature = geometry
-        if preferred_geometry_key is not None and 'extra_geometries' in feature.properties:
-            geometry = feature.properties['extra_geometries'].get(preferred_geometry_key, feature.geometry)
+        if (
+            preferred_geometry_key is not None
+            and "extra_geometries" in feature.properties
+        ):
+            geometry = feature.properties["extra_geometries"].get(
+                preferred_geometry_key, feature.geometry
+            )
         else:
             geometry = feature.geometry
-    elif geometry['type'] == 'FeatureCollection':
-        raise ValueError('Cannot convert FeatureCollection to single Geometry')
+    elif geometry["type"] == "FeatureCollection":
+        raise ValueError("Cannot convert FeatureCollection to single Geometry")
 
     if z is None or t is None:
-        plane = getattr(geometry, 'plane', None)
+        plane = getattr(geometry, "plane", None)
         if z is None:
-            z = getattr(plane, 'z', 0) if plane is not None else getattr(geometry, 'z', 0)
+            z = (
+                getattr(plane, "z", 0)
+                if plane is not None
+                else getattr(geometry, "z", 0)
+            )
         if t is None:
-            t = getattr(plane, 't', 0) if plane is not None else getattr(geometry, 't', 0)
-    
+            t = (
+                getattr(plane, "t", 0)
+                if plane is not None
+                else getattr(geometry, "t", 0)
+            )
+
     geometry = geojson.GeoJSON.to_instance(geometry, strict=False)
     geometry.plane = ImagePlane(z, t)
     return geometry

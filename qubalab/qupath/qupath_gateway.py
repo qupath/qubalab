@@ -1,8 +1,7 @@
 import numpy as np
 from py4j.java_gateway import JavaGateway, GatewayParameters, JavaObject
 from py4j.protocol import Py4JNetworkError
-from enum import Enum
-from typing import Union
+from typing import Union, Optional
 import geojson
 from ..images import utils
 from ..objects.image_feature import ImageFeature
@@ -13,7 +12,9 @@ from ..objects.geojson import geojson_features_from_string
 _default_gateway = None
 
 
-def create_gateway(auto_convert=True, auth_token=None, port=25333, set_as_default=True, **kwargs) -> JavaGateway:
+def create_gateway(
+    auto_convert=True, auth_token=None, port=25333, set_as_default=True, **kwargs
+) -> JavaGateway:
     """
     Create a new JavaGateway to communicate with QuPath.
 
@@ -32,9 +33,7 @@ def create_gateway(auto_convert=True, auth_token=None, port=25333, set_as_defaul
     else:
         gateway_parameters = GatewayParameters(auth_token=auth_token, port=port)
     gateway = JavaGateway(
-        auto_convert=auto_convert,
-        gateway_parameters=gateway_parameters,
-        **kwargs
+        auto_convert=auto_convert, gateway_parameters=gateway_parameters, **kwargs
     )
 
     try:
@@ -42,8 +41,10 @@ def create_gateway(auto_convert=True, auth_token=None, port=25333, set_as_defaul
         qupath = gateway.entry_point.getQuPath()
         assert qupath is not None
     except (Py4JNetworkError, AssertionError) as err:
-        raise RuntimeError('Could not connect to QuPath - is it running, and you have opened a Py4J gateway?') from err
-    
+        raise RuntimeError(
+            "Could not connect to QuPath - is it running, and you have opened a Py4J gateway?"
+        ) from err
+
     if set_as_default:
         set_default_gateway(gateway)
     return gateway
@@ -73,7 +74,7 @@ def get_default_gateway() -> JavaGateway:
     return _default_gateway
 
 
-def get_current_image_data(gateway: JavaGateway = None) -> JavaObject:
+def get_current_image_data(gateway: Optional[JavaGateway] = None) -> JavaObject:
     """
     Get the current ImageData opened in QuPath through the provided gateway.
 
@@ -84,7 +85,7 @@ def get_current_image_data(gateway: JavaGateway = None) -> JavaObject:
     return gateway.entry_point.getQuPath().getImageData()
 
 
-def get_project(gateway: JavaGateway = None) -> JavaObject:
+def get_project(gateway: Optional[JavaGateway] = None) -> JavaObject:
     """
     Return the currently opened QuPath project.
 
@@ -95,9 +96,11 @@ def get_project(gateway: JavaGateway = None) -> JavaObject:
     return gateway.entry_point.getProject()
 
 
-def create_snapshot(gateway: JavaGateway = None, snapshot_type: str = 'qupath') -> np.ndarray:
+def create_snapshot(
+    gateway: JavaGateway = None, snapshot_type: str = "qupath"
+) -> np.ndarray:
     """
-    Create and return a snapshot of QuPath. 
+    Create and return a snapshot of QuPath.
 
     :param gateway: the gateway to use. Can be None to use the default gateway
     :param snapshot_type: what to include in the snapshot. 'qupath' for the entire qupath window or
@@ -108,21 +111,21 @@ def create_snapshot(gateway: JavaGateway = None, snapshot_type: str = 'qupath') 
     gateway = get_default_gateway() if gateway is None else gateway
     qp = gateway.entry_point
 
-    if snapshot_type == 'qupath':
+    if snapshot_type == "qupath":
         image = qp.snapshotBase64(qp.getQuPath())
-    elif snapshot_type == 'viewer':
+    elif snapshot_type == "viewer":
         image = qp.snapshotBase64(qp.getCurrentViewer())
     else:
-        raise ValueError(f'Unknown snapshot_type {snapshot_type}')
-        
+        raise ValueError(f"Unknown snapshot_type {snapshot_type}")
+
     return utils.base64_to_image(image, True)
 
 
 def get_objects(
-    image_data: JavaObject = None,
-    gateway: JavaGateway = None,
-    object_type: ObjectType = None,
-    converter: str = None
+    image_data: Optional[JavaObject] = None,
+    gateway: Optional[JavaGateway] = None,
+    object_type: Optional[ObjectType] = None,
+    converter: Optional[str] = None,
 ) -> Union[list[geojson.Feature], list[ImageFeature], list[JavaObject]]:
     """
     Get the objects (e.g. detections, annotations) of the current or specified image in QuPath.
@@ -153,14 +156,20 @@ def get_objects(
         case ObjectType.TMA_CORE:
             tma_grid = hierarchy.getTMAGrid()
             path_objects = [] if tma_grid is None else tma_grid.getTMACoreList()
+        case _:
+            path_objects = hierarchy.getAllObjects(False)
 
-    if converter == 'geojson' or converter == 'simple_feature':
+    if converter == "geojson" or converter == "simple_feature":
         # Use toFeatureCollections for performance and to avoid string length troubles
         features = []
-        for feature_collection in gateway.entry_point.toFeatureCollections(path_objects, 1000):
-            features.extend(geojson_features_from_string(feature_collection, parse_constant=None))
+        for feature_collection in gateway.entry_point.toFeatureCollections(
+            path_objects, 1000
+        ):
+            features.extend(
+                geojson_features_from_string(feature_collection, parse_constant=None)
+            )
 
-        if converter == 'simple_feature':
+        if converter == "simple_feature":
             return features
         else:
             return [ImageFeature.create_from_feature(f) for f in features]
@@ -168,7 +177,11 @@ def get_objects(
         return path_objects
 
 
-def count_objects(image_data: JavaObject = None, gateway: JavaGateway = None, object_type: ObjectType = None,) -> int:
+def count_objects(
+    image_data: Optional[JavaObject] = None,
+    gateway: Optional[JavaGateway] = None,
+    object_type: Optional[ObjectType] = None,
+) -> int:
     """
     Get a count of all objects in the current or specified image.
 
@@ -183,7 +196,11 @@ def count_objects(image_data: JavaObject = None, gateway: JavaGateway = None, ob
     return len(get_objects(image_data, gateway, object_type))
 
 
-def add_objects(features: Union[list[geojson.Feature], geojson.Feature], image_data: JavaObject = None, gateway: JavaGateway = None):
+def add_objects(
+    features: Union[list[geojson.Feature], geojson.Feature],
+    image_data: Optional[JavaObject] = None,
+    gateway: Optional[JavaGateway] = None,
+):
     """
     Add the provided features to the current or provided ImageData.
 
@@ -196,12 +213,18 @@ def add_objects(features: Union[list[geojson.Feature], geojson.Feature], image_d
 
     if isinstance(features, geojson.Feature):
         features = list(features)
-    
+
     features_json = geojson.dumps(features, allow_nan=True)
-    image_data.getHierarchy().addObjects(gateway.entry_point.toPathObjects(features_json))
+    image_data.getHierarchy().addObjects(
+        gateway.entry_point.toPathObjects(features_json)
+    )
 
 
-def delete_objects(image_data: JavaObject = None, gateway: JavaGateway = None, object_type: ObjectType = None):
+def delete_objects(
+    image_data: Optional[JavaObject] = None,
+    gateway: Optional[JavaGateway] = None,
+    object_type: Optional[ObjectType] = None,
+):
     """
     Delete all specified objects (e.g. annotations, detections) from the current or provided ImageData.
 
@@ -213,14 +236,16 @@ def delete_objects(image_data: JavaObject = None, gateway: JavaGateway = None, o
     image_data = get_current_image_data(gateway) if image_data is None else image_data
 
     if image_data is not None:
-        image_data.getHierarchy().removeObjects(get_objects(image_data, gateway, object_type), True)
+        image_data.getHierarchy().removeObjects(
+            get_objects(image_data, gateway, object_type), True
+        )
         image_data.getHierarchy().getSelectionModel().clearSelection()
 
 
-def refresh_qupath(gateway: JavaGateway = None):
+def refresh_qupath(gateway: Optional[JavaGateway] = None) -> None:
     """
     Update the current QuPath interface.
-    
+
     This is sometimes needed to update the QuPath window when some changes are
     made to hierarchy.
 

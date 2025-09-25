@@ -1,9 +1,9 @@
 import numpy as np
 import dask.array as da
-import dask
+from dask.delayed import delayed
 from dask_image import ndinterp
 import warnings
-from typing import Union, Iterable
+from typing import Union, Iterable, Optional, Tuple
 from abc import ABC, abstractmethod
 from PIL import Image
 from .region_2d import Region2D
@@ -37,14 +37,14 @@ class ImageServer(ABC):
     def read_region(
         self,
         downsample: float = 1.0,
-        region: Union[Region2D, tuple[int, ...]] = None,
+        region: Optional[Union[Region2D, tuple[int, ...]]] = None,
         x: int = 0,
         y: int = 0,
         width: int = -1,
         height: int = -1,
         z: int = 0,
-        t: int = 0
-    ) -> np.ndarray:
+        t: int = 0,
+    ) -> Union[np.ndarray, Image.Image]:
         """
         Read pixels from any arbitrary image region, at any resolution determined by the downsample.
 
@@ -76,25 +76,34 @@ class ImageServer(ABC):
             # If we have a tuple, use it along with the downsample if available
             region = Region2D(*region)
         if not isinstance(region, Region2D):
-            raise ValueError('No valid region provided to read_region method')
+            raise ValueError("No valid region provided to read_region method")
 
         # Fix negative values for width or height
         if region.width < 0 or region.height < 0:
             w = region.width if region.width >= 0 else self.metadata.width - region.x
             h = region.height if region.height >= 0 else self.metadata.height - region.y
-            region = Region2D(x=region.x, y=region.y, width=w, height=h, z=region.z, t=region.t)
+            region = Region2D(
+                x=region.x, y=region.y, width=w, height=h, z=region.z, t=region.t
+            )
 
         level = ImageServer._get_level(self.metadata.downsamples, downsample)
         level_downsample = self.metadata.downsamples[level]
-        image = self._read_block(level, region.downsample_region(downsample=level_downsample))
-        
+        image = self._read_block(
+            level, region.downsample_region(downsample=level_downsample)
+        )
+
         if downsample == level_downsample:
             return image
         else:
-            target_size = (round(region.width / downsample), round(region.height / downsample))
+            target_size = (
+                round(region.width / downsample),
+                round(region.height / downsample),
+            )
             return self._resize(image, target_size, self._resize_method)
-        
-    def level_to_dask(self, level: int = 0, chunk_width: int = 1024, chunk_height: int = 1024) -> da.Array:
+
+    def level_to_dask(
+        self, level: int = 0, chunk_width: int = 1024, chunk_height: int = 1024
+    ) -> da.Array:
         """
         Return a dask array representing a single resolution of the image.
 
@@ -117,7 +126,9 @@ class ImageServer(ABC):
         """
         if level < 0 or level >= self.metadata.n_resolutions:
             raise ValueError(
-                "The provided level ({0}) is outside of the valid range ([0, {1}])".format(level, self.metadata.n_resolutions - 1)
+                "The provided level ({0}) is outside of the valid range ([0, {1}])".format(
+                    level, self.metadata.n_resolutions - 1
+                )
             )
 
         ts = []
@@ -131,22 +142,22 @@ class ImageServer(ABC):
                         width = min(chunk_width, self.metadata.shapes[level].x - x)
                         height = min(chunk_height, self.metadata.shapes[level].y - y)
 
-                        ys.append(da.from_delayed(
-                            dask.delayed(self._read_block)(level, Region2D(x, y, width, height, z, t)),
-                            shape=(
-                                self.metadata.n_channels,
-                                height,
-                                width
-                            ),
-                            dtype=self.metadata.dtype
-                        ))
+                        ys.append(
+                            da.from_delayed(
+                                delayed(self._read_block)(
+                                    level, Region2D(x, y, width, height, z, t)
+                                ),
+                                shape=(self.metadata.n_channels, height, width),
+                                dtype=self.metadata.dtype,
+                            )
+                        )
                     xs.append(da.concatenate(ys, axis=1))
                 zs.append(da.concatenate(xs, axis=2))
             ts.append(da.stack(zs))
         image = da.stack(ts)
 
         # Swap channels and z-stacks axis
-        image = da.swapaxes(image, 1, 2)        
+        image = da.swapaxes(image, 1, 2)
 
         # Remove axis of length 1
         axes_to_squeeze = []
@@ -157,10 +168,12 @@ class ImageServer(ABC):
         if self.metadata.n_z_slices == 1:
             axes_to_squeeze.append(2)
         image = da.squeeze(image, tuple(axes_to_squeeze))
-        
+
         return image
-    
-    def to_dask(self, downsample: Union[float, Iterable[float]] = None) -> Union[da.Array, tuple[da.Array, ...]]:
+
+    def to_dask(
+        self, downsample: Union[float, Optional[Iterable[float]]] = None
+    ) -> Union[da.Array, tuple[da.Array, ...]]:
         """
         Convert this image to one or more dask arrays, at any arbitary downsample factor.
 
@@ -173,13 +186,18 @@ class ImageServer(ABC):
         """
 
         if downsample is None:
-            if self.n_resolutions == 1:
+            if self.metadata.n_resolutions == 1:
                 return self.level_to_dask(level=0)
             else:
-                return tuple([self.level_to_dask(level=level) for level in range(self.metadata.n_resolutions)])
+                return tuple(
+                    [
+                        self.level_to_dask(level=level)
+                        for level in range(self.metadata.n_resolutions)
+                    ]
+                )
 
         if isinstance(downsample, Iterable):
-            return tuple([self.to_dask(downsample=float(d)) for d in downsample])
+            return self.to_dask(downsample=downsample)
 
         level = ImageServer._get_level(self.metadata.downsamples, downsample)
         array = self.level_to_dask(level=level)
@@ -196,22 +214,26 @@ class ImageServer(ABC):
         # TODO: Urgently need something better! Performance is terrible for large images - all pixels requested
         #       upon first compute (even for a small region), and then resized. This is not scalable.
         if array.size > 10000:
-            warnings.warn('Warning - calling affine_transform on a large dask array can be *very* slow')
+            warnings.warn(
+                "Warning - calling affine_transform on a large dask array can be *very* slow"
+            )
 
         transform = np.eye(array.ndim)
-        transform[array.ndim-1, array.ndim-1] = rescale
-        transform[array.ndim-2, array.ndim-2] = rescale
+        transform[array.ndim - 1, array.ndim - 1] = rescale
+        transform[array.ndim - 2, array.ndim - 2] = rescale
         output_shape = list(array.shape)
         output_shape[-1] = output_width
         output_shape[-2] = output_height
 
-        return ndinterp.affine_transform(array, transform, output_shape=tuple(output_shape))
+        return ndinterp.affine_transform(
+            array, transform, output_shape=tuple(output_shape)
+        )
 
     @abstractmethod
     def close(self):
         """
         Close this image server.
-        
+
         This should be called whenever this server is not used anymore.
         """
         pass
@@ -232,7 +254,7 @@ class ImageServer(ABC):
 
         Coordinates are provided in the coordinate space of the level, NOT the full-resolution image.
         This means that the returned image should have the width and height specified.
-        
+
         :param level: the pyramidal level to read from
         :param region: the region to read
         :return: a 3-dimensional numpy array containing the requested pixels from the 2D region.
@@ -240,9 +262,11 @@ class ImageServer(ABC):
                  pixel located at coordinates [x, y] on the image
         """
         pass
-    
+
     @staticmethod
-    def _get_level(all_downsamples: tuple[float], downsample: float, abs_tol=1e-3) -> int:
+    def _get_level(
+        all_downsamples: Tuple[float, ...], downsample: float, abs_tol=1e-3
+    ) -> int:
         """
         Get the level (index) from the image downsamples that is best for fulfilling an image region request.
 
@@ -266,9 +290,13 @@ class ImageServer(ABC):
                 if downsample >= d - abs_tol:
                     return level
             return 0
-        
+
     @staticmethod
-    def _resize(image: Union[np.ndarray, Image.Image], target_size: tuple[int, int], resample: int = Image.Resampling.BICUBIC) -> Union[np.ndarray, Image.Image]:
+    def _resize(
+        image: Union[np.ndarray, Image.Image],
+        target_size: tuple[int, int],
+        resample: int = Image.Resampling.BICUBIC,
+    ) -> Union[np.ndarray, Image.Image]:
         """
         Resize an image to a target size.
 
@@ -293,18 +321,25 @@ class ImageServer(ABC):
                 if image.dtype in [np.uint8, np.float32]:
                     pilImage = Image.fromarray(image)
                 elif np.issubdtype(image.dtype, np.integer):
-                    pilImage = Image.fromarray(image.astype(np.int32), mode='I')
+                    pilImage = Image.fromarray(image.astype(np.int32), mode="I")
                 elif np.issubdtype(image.dtype, np.bool_):
                     pilImage = Image.fromarray(image, "1")
                 else:
-                    pilImage = Image.fromarray(image.astype(np.float32), mode='F')
-                pilImage = ImageServer._resize(pilImage, target_size=target_size, resample=resample)
+                    pilImage = Image.fromarray(image.astype(np.float32), mode="F")
+                pilImage = ImageServer._resize(
+                    pilImage, target_size=target_size, resample=resample
+                )
                 return np.asarray(pilImage).astype(image.dtype)
             else:
-                return np.stack([
-                    ImageServer._resize(image[c, :, :], target_size=target_size, resample=resample) for c in range(image.shape[0])
-                ])
-        
+                arrs = [
+                    ImageServer._resize(
+                        image[c, :, :], target_size=target_size, resample=resample
+                    )
+                    for c in range(image.shape[0])
+                ]
+                arrs = [np.array(x) if isinstance(x, Image.Image) else x for x in arrs]
+                return np.stack(arrs)
+
     @staticmethod
     def _get_size(image: Union[np.ndarray, Image.Image]):
         """

@@ -2,9 +2,12 @@ import numpy as np
 import imageio
 import base64
 from .metadata.image_shape import ImageShape
+from typing import Optional, Union
 
 
-def bytes_to_image(uri: {str, bytes}, is_rgb: bool, shape: ImageShape = None) -> np.ndarray:
+def bytes_to_image(
+    uri: Union[str, bytes], is_rgb: bool, shape: Optional[ImageShape] = None
+) -> np.ndarray:
     """
     Read the provided bytes (or URI pointing to a binary file) and convert them to a numpy array
     representing an image.
@@ -29,7 +32,9 @@ def bytes_to_image(uri: {str, bytes}, is_rgb: bool, shape: ImageShape = None) ->
         return _reorder_axes(image, shape)
 
 
-def base64_to_image(data: str, is_rgb: bool, shape: ImageShape = None) -> np.ndarray:
+def base64_to_image(
+    data: str, is_rgb: bool, shape: Optional[ImageShape] = None
+) -> np.ndarray:
     """
     Read the provided string with the Base64 format and convert it to a numpy array
     representing an image.
