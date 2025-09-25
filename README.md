@@ -76,3 +76,10 @@ pip install -e ".[dev,test]"                  # install qubalab (-e means change
 jupyter lab .                                           # to start the Jupyter notebooks
 pytest                                                  # to run unit tests
 ```
+
+### Releases
+
+This repository is set up to automagically push releases to pypi.
+To roll a new release, go to `Releases --> Draft a new release`, then under `Tag` and `Release Title`, enter a new (matching) SemVer.
+Then click `Generate release notes` and add any additional information.
+You shouldn't need any artifacts. However this ensures the GitHub and PyPi release history is synchronised.
