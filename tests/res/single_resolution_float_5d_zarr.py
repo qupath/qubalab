@@ -52,7 +52,7 @@ def _write_image(pixels: np.array):
         shutil.rmtree(get_path())
 
     zarr = bioio.writers.OMEZarrWriter(
-        get_path(), dtype=get_dtype(), shape=get_shapes()[0]
+        get_path(), dtype=get_dtype(), shape=get_shapes()[0].as_tuple()
     )
     zarr.write_image(
         image_data=pixels,
