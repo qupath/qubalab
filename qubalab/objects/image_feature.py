@@ -39,7 +39,7 @@ class ImageFeature(geojson.Feature):
 
     def __init__(
         self,
-        geometry: geojson.geometry.Geometry,
+        geometry: Optional[geojson.geometry.Geometry],
         classification: Optional[Union[Classification, dict]] = None,
         name: Optional[str] = None,
         measurements: Optional[dict[str, float]] = None,
