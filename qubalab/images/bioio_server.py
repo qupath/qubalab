@@ -13,7 +13,7 @@ from .region_2d import Region2D
 
 class BioIOServer(ImageServer):
     """
-    An ImageServer using BioIO (https://github.com/AllenCellModeling/BioIO).
+    An ImageServer using BioIO (https://github.com/bioio-devs/bioio).
 
     What this actually supports will depend upon how BioIO is installed.
     For example, it may provide Bio-Formats or CZI support... or it may not.

@@ -4,6 +4,7 @@ import shutil
 import numpy as np
 from bioio_base.types import PhysicalPixelSizes
 from qubalab.images.metadata.image_shape import ImageShape
+import bioio_ome_zarr.writers
 
 
 def get_name() -> str:
@@ -11,7 +12,9 @@ def get_name() -> str:
 
 
 def get_path() -> str:
-    return os.path.realpath(os.path.join(os.path.realpath(__file__), os.pardir, get_name()))
+    return os.path.realpath(
+        os.path.join(os.path.realpath(__file__), os.pardir, get_name())
+    )
 
 
 def get_shapes() -> tuple[ImageShape, ...]:
@@ -35,7 +38,13 @@ def get_pixel_value(x: int, y: int, c: int, z: int, t: int) -> int:
 
 
 def _get_pixels() -> np.array:
-    return np.random.rand(get_shapes()[0].t, get_shapes()[0].c, get_shapes()[0].z, get_shapes()[0].y, get_shapes()[0].x)
+    return np.random.rand(
+        get_shapes()[0].t,
+        get_shapes()[0].c,
+        get_shapes()[0].z,
+        get_shapes()[0].y,
+        get_shapes()[0].x,
+    )
 
 
 def _write_image(pixels: np.array):
@@ -43,17 +52,24 @@ def _write_image(pixels: np.array):
     if os.path.exists(get_path()) and os.path.isdir(get_path()):
         shutil.rmtree(get_path())
 
-    zarr = bioio.writers.OmeZarrWriter(get_path())
-    zarr.write_image(
-        image_data = pixels,
-        image_name = "single_resolution_float_5d",
-        channel_names = ["Channel " + str(i) for i in range(get_shapes()[0].c)],
-        channel_colors = [i for i in range(get_shapes()[0].c)],
-        physical_pixel_sizes = PhysicalPixelSizes(
-            X = get_pixel_size_x_y_in_micrometers(),
-            Y = get_pixel_size_x_y_in_micrometers(),
-            Z = get_pixel_size_x_y_in_micrometers())
+    zarr = bioio.writers.OMEZarrWriter(
+        get_path(),
+        dtype=get_dtype(),
+        shape=get_shapes()[0].as_tuple(),
+        image_name="single_resolution_float_5d",
+        physical_pixel_size=[
+            1,  ## tczyx
+            1,
+            get_pixel_size_x_y_in_micrometers(),
+            get_pixel_size_x_y_in_micrometers(),
+            get_pixel_size_x_y_in_micrometers(),
+        ],
+        channels=[
+            bioio_ome_zarr.writers.Channel(label="Channel " + str(i), color=i)
+            for i in range(get_shapes()[0].c)
+        ],
     )
+    zarr.write_full_volume(input_data=pixels)
 
 
 pixels = _get_pixels()
