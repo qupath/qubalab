@@ -151,7 +151,6 @@ class ImageMetadata:
         if isinstance(other, ImageMetadata):
             return (
                 self.path == other.path
-                and self.path == other.path
                 and self.name == other.name
                 and self.shapes == other.shapes
                 and self.pixel_calibration == other.pixel_calibration

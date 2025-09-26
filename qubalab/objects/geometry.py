@@ -33,7 +33,7 @@ def add_plane_to_geometry(
     z: Optional[int] = None,
     t: Optional[int] = None,
     preferred_geometry_key: Optional[str] = None,
-) -> Union[geojson.geometry.Geometry]:
+) -> Optional[geojson.geometry.Geometry]:
     """
     Create a GeoJSON Geometry object with an additional 'plane' property containing z and t indices.
 
@@ -56,7 +56,7 @@ def add_plane_to_geometry(
     if geometry is None:
         return None
 
-    if geometry["type"] == "Feature":
+    if isinstance(geometry, geojson.Feature):
         feature = geometry
         if (
             preferred_geometry_key is not None
@@ -67,7 +67,7 @@ def add_plane_to_geometry(
             )
         else:
             geometry = feature.geometry
-    elif geometry["type"] == "FeatureCollection":
+    elif isinstance(geometry, geojson.FeatureCollection):
         raise ValueError("Cannot convert FeatureCollection to single Geometry")
 
     if z is None or t is None:

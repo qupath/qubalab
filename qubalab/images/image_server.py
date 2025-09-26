@@ -172,7 +172,7 @@ class ImageServer(ABC):
         return image
 
     def to_dask(
-        self, downsample: Union[float, Optional[Iterable[float]]] = None
+        self, downsample: Optional[Union[float, Iterable[float]]] = None
     ) -> Union[da.Array, tuple[da.Array, ...]]:
         """
         Convert this image to one or more dask arrays, at any arbitary downsample factor.
@@ -185,6 +185,9 @@ class ImageServer(ABC):
         :return: a dask array or tuple of dask arrays, depending upon whether one or more downsample factors are required
         """
 
+        if isinstance(downsample, Iterable):
+            return tuple(self._to_dask_impl(downsample=d) for d in downsample)
+
         if downsample is None:
             if self.metadata.n_resolutions == 1:
                 return self.level_to_dask(level=0)
@@ -195,9 +198,9 @@ class ImageServer(ABC):
                         for level in range(self.metadata.n_resolutions)
                     ]
                 )
+        return self._to_dask_impl(downsample=downsample)
 
-        if isinstance(downsample, Iterable):
-            return self.to_dask(downsample=downsample)
+    def _to_dask_impl(self, downsample: float) -> da.Array:
 
         level = ImageServer._get_level(self.metadata.downsamples, downsample)
         array = self.level_to_dask(level=level)
