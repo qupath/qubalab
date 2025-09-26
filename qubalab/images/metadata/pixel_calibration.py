@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -8,12 +9,13 @@ class PixelLength:
     Simple data class to store pixel size information, along one dimension.
 
     Can be thought of as the pixel width, pixel height or pixel depth (z-spacing).
-    
+
     :param length: the length of the pixel, by default 1
-    :param unit: a text describing the unit of length, by default "pixels"
+    :param unit: a text describing the unit of length, by default "pixels". Can be None.
     """
+
     length: float = 1.0
-    unit: str = 'pixels'
+    unit: Optional[str] = "pixels"
 
     def is_default(self) -> bool:
         """
@@ -21,7 +23,7 @@ class PixelLength:
 
         :returns: whether this is a default pixel length
         """
-        return self.length == 1.0 and self.unit == 'pixels'
+        return self.length == 1.0 and self.unit == "pixels"
 
     @staticmethod
     def create_microns(length: float) -> PixelLength:
@@ -31,7 +33,7 @@ class PixelLength:
         :param length: the length of the pixel
         :returns: a pixel length of the provided length with the 'micrometer' unit
         """
-        return PixelLength(length=length, unit='micrometer')
+        return PixelLength(length=length, unit="micrometer")
 
     @staticmethod
     def create_unknown(length: float) -> PixelLength:
@@ -53,6 +55,7 @@ class PixelCalibration:
     :param length_y: the pixel size along the y-axis
     :param length_z: the pixel size along the z-axis
     """
+
     length_x: PixelLength = PixelLength()
     length_y: PixelLength = PixelLength()
     length_z: PixelLength = PixelLength()

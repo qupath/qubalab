@@ -1,20 +1,24 @@
 from __future__ import annotations
 import random
+from typing import Optional
 
 
 class Classification(object):
     """
     Simple class to store the name and color of a classification.
     """
+
     _cached_classifications = {}
 
-    def __init__(self, name: str, color: tuple[int, int, int] = None):
+    def __init__(self, name: str, color: Optional[tuple[int, int, int]] = None):
         """
         :param name: the name of the classification
         :param color: the RGB color (each component between 0 and 255) of the classification. Can be None to use a random color
         """
         self._name = name
-        self._color = [random.randint(0, 255) for _ in range(3)] if color is None else color
+        self._color = (
+            tuple(random.randint(0, 255) for _ in range(3)) if color is None else color
+        )
 
     @property
     def name(self) -> str:
@@ -28,13 +32,15 @@ class Classification(object):
         """
         The color of the classification.
         """
-        return self._color
-    
+        return self._color  ## todo: pylance type hints problem
+
     @staticmethod
-    def get_cached_classification(name: str, color: tuple[int, int, int] = None) -> Classification:
+    def get_cached_classification(
+        name: str, color: Optional[tuple[int, int, int]] = None
+    ) -> Classification:
         """
         Return a classification by looking at an internal cache.
-        
+
         If no classification with the provided name is present in the cache, a
         new classification is created and the cache is updated.
 
@@ -51,7 +57,7 @@ class Classification(object):
         """
         if name is None:
             return None
-        
+
         classification = Classification._cached_classifications.get(name)
         if classification is None:
             classification = Classification(name, color)
@@ -60,14 +66,14 @@ class Classification(object):
 
     def __str__(self):
         return f"Classification {self._name} of color {self._color}"
-        
+
     def __repr__(self):
         return f"Classification('{self._name}', {self._color})"
-        
+
     def __eq__(self, other):
         if isinstance(other, Classification):
             return self._name == other._name and self._color == other._color
         return False
-    
+
     def __hash__(self):
         return hash(self._name)
