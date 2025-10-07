@@ -1,5 +1,6 @@
 # QuBaLab
 
+![PyPI - Version](https://img.shields.io/pypi/v/qubalab)
 [![Coverage](https://qupath.github.io/badges/qubalab/badges/coverage-badge.svg?dummy=1234)](https://qupath.github.io/badges/qubalab/reports/coverage/index.html?dummy=1234)
 [![Tests](https://qupath.github.io/badges/qubalab/badges/tests-badge.svg?dummy=1234)](https://qupath.github.io/badges/qubalab/reports/junit/report.html?dummy=1234)
 ![Actions](https://github.com/qupath/qubalab/actions/workflows/tests.yml/badge.svg?dummy=1234)
