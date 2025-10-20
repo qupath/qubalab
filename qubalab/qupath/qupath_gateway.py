@@ -133,7 +133,7 @@ def get_objects(
     :param image_data: the image_data to retrieve objects from. Can be None to use the current ImageData opened in QuPath
     :param gateway: the gateway to use. Can be None to use the default gateway
     :param object_type: the type of object to get. Can be None to get all objects except the root
-    :param converter: can be 'geojson' to get an extended GeoJSON feature represented as a QuBaLab 'ImageObject',
+    :param converter: can be 'geojson' to get an extended GeoJSON feature represented as a QuBaLab 'ImageFeature',
                       or 'simple_feature' to get a regular GeoJSON 'Feature'. By default, the Py4J representation of
                       the QuPath Java object is returned.
     :return: the list of objects of the specified image. The type of the objects depends on the converted parameter
