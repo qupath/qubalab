@@ -72,12 +72,14 @@ class ImageFeature(geojson.Feature):
         if classification is not None:
             if isinstance(classification, Classification):
                 props["classification"] = {
-                    "name": classification.name,
+                    "names": classification.names,
                     "color": classification.color,
                 }
             else:
                 props["classification"] = {
-                    "name": classification.get("name"),
+                    "names": classification.get("names")
+                    if "names" in classification.keys()
+                    else (classification.get("name"),),
                     "color": classification.get("color"),
                 }
         if name is not None:
@@ -169,7 +171,7 @@ class ImageFeature(geojson.Feature):
         connectivity: int = 4,
         scale: float = 1.0,
         include_labels=False,
-        classification_names: Union[str, dict[int, str]] = None,
+        classification_names: Optional[Union[str, dict[int, str]]] = None,
     ) -> list[ImageFeature]:
         """
         Create a list of ImageFeatures from a binary or labeled image.
@@ -243,7 +245,9 @@ class ImageFeature(geojson.Feature):
         """
         if "classification" in self.properties:
             return Classification(
-                self.properties["classification"].get("name"),
+                self.properties["classification"].get("names")
+                if "names" in self.properties["classification"].keys()
+                else (self.properties["classification"].get("name"),),
                 self.properties["classification"].get("color"),
             )
         else:

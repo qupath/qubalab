@@ -1,21 +1,27 @@
 from __future__ import annotations
 import random
-from typing import Optional
+from typing import Optional, Union
 
 
 class Classification(object):
     """
-    Simple class to store the name and color of a classification.
+    Simple class to store the names and color of a classification.
     """
 
     _cached_classifications = {}
 
-    def __init__(self, name: str, color: Optional[tuple[int, int, int]] = None):
+    def __init__(
+        self,
+        names: Union[str, tuple[str]],
+        color: Optional[tuple[int, int, int]] = None,
+    ):
         """
-        :param name: the name of the classification
+        :param names: the names of the classification
         :param color: the RGB color (each component between 0 and 255) of the classification. Can be None to use a random color
         """
-        self._name = name
+        if isinstance(names, str):
+            names = (names,)
+        self._names = names
         self._color = (
             tuple(random.randint(0, 255) for _ in range(3)) if color is None else color
         )
@@ -25,7 +31,14 @@ class Classification(object):
         """
         The name of the classification.
         """
-        return self._name
+        return ": ".join(self._names)
+
+    @property
+    def names(self) -> tuple[str]:
+        """
+        The name of the classification.
+        """
+        return self._names
 
     @property
     def color(self) -> tuple[int, int, int]:
@@ -36,8 +49,9 @@ class Classification(object):
 
     @staticmethod
     def get_cached_classification(
-        name: str, color: Optional[tuple[int, int, int]] = None
-    ) -> Classification:
+        name: Optional[Union[str, tuple[str]]],
+        color: Optional[tuple[int, int, int]] = None,
+    ) -> Optional[Classification]:
         """
         Return a classification by looking at an internal cache.
 
@@ -57,7 +71,9 @@ class Classification(object):
         """
         if name is None:
             return None
-
+        if isinstance(name, str):
+            name = (name,)
+        name = ": ".join(name)
         classification = Classification._cached_classifications.get(name)
         if classification is None:
             classification = Classification(name, color)
@@ -65,15 +81,15 @@ class Classification(object):
         return classification
 
     def __str__(self):
-        return f"Classification {self._name} of color {self._color}"
+        return f"Classification {self.name} of color {self.color}"
 
     def __repr__(self):
-        return f"Classification('{self._name}', {self._color})"
+        return f"Classification('{self.name}', {self.color})"
 
     def __eq__(self, other):
         if isinstance(other, Classification):
-            return self._name == other._name and self._color == other._color
+            return self.name == other.name and self.color == other.color
         return False
 
     def __hash__(self):
-        return hash(self._name)
+        return hash(self.name)
