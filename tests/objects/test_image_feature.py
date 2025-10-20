@@ -1,9 +1,12 @@
 import geojson
 import math
 import numpy as np
-from qubalab.objects.image_feature import ImageFeature
-from qubalab.objects.classification import Classification
-from qubalab.objects.object_type import ObjectType
+from qubalab.objects import (
+    ObjectType,
+    ImageFeature,
+    Classification,
+    geojson_features_from_string,
+)
 
 
 def test_geometry():
@@ -685,3 +688,29 @@ def test_nucleus_geometry_when_set_after_creation():
     nucleus_geometry = image_feature.nucleus_geometry
 
     assert nucleus_geometry == expected_nucleus_geometry
+
+
+def test_imagefeature_handles_classification_names():
+    string = """
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[0,0]},"properties":{"objectType":"annotation","classification":{"names":["a","b"]}}}
+    """
+    feature = geojson_features_from_string(string)
+    ifeature = ImageFeature.create_from_feature(feature)
+    assert (
+        ifeature.classification.names
+        == feature["properties"]["classification"]["names"]
+    )
+    assert ifeature.classification.name == ": ".join(
+        feature["properties"]["classification"]["names"]
+    )
+
+
+def test_imagefeature_handles_classification_name():
+    string = """
+    {"type":"Feature","geometry":{"type":"Point","coordinates":[0,0]},"properties":{"objectType":"annotation","classification":{"names":["a","b"]}}}
+    """
+    feature = geojson_features_from_string(string)
+    ifeature = ImageFeature.create_from_feature(feature)
+    assert ifeature.classification.name == ": ".join(
+        feature["properties"]["classification"]["names"]
+    )
