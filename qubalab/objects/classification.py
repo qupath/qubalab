@@ -31,8 +31,6 @@ class Classification(object):
         """
         The name of the classification.
         """
-        if self._names is None:
-            print("lol")
         return ": ".join(self._names)
 
     @property
