@@ -696,9 +696,8 @@ def test_imagefeature_handles_classification_names():
     """
     feature = geojson_features_from_string(string)
     ifeature = ImageFeature.create_from_feature(feature)
-    assert (
-        ifeature.classification.names
-        == feature["properties"]["classification"]["names"]
+    assert ifeature.classification.names == tuple(
+        feature["properties"]["classification"]["names"]
     )
     assert ifeature.classification.name == ": ".join(
         feature["properties"]["classification"]["names"]
