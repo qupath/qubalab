@@ -2,12 +2,12 @@ from qubalab.objects.classification import Classification
 
 
 def test_name():
-    expected_name = "name"
-    classification = Classification(expected_name)
+    expected_names = ("name",)
+    classification = Classification(expected_names)
 
-    name = classification.name
+    names = classification.names
 
-    assert expected_name == name
+    assert expected_names == names
 
 
 def test_color():
@@ -30,7 +30,7 @@ def test_cache_when_empty():
 
     classification = Classification(name, color)
 
-    assert classification == Classification(name, color)
+    assert classification is Classification(name, color)
 
 
 def test_cache_when_not_empty_and_same_name():
@@ -67,12 +67,4 @@ def test_names_input():
     names = ("a", "b")
     class1 = Classification(names)
     class2 = Classification(list(names))
-    assert class1 is class2
-
-
-def test_names_with_colon():
-    names = ("a", "b")
-    name = "a: b"
-    class1 = Classification(names)
-    class2 = Classification(name)
     assert class1 is class2

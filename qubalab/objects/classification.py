@@ -6,26 +6,32 @@ from typing import Optional, Union
 class Classification(object):
     """
     Simple class to store the names and color of a classification.
+
+    Each Classification with the same names is the same object, retrieved from a cache.
+    Therefore updating the color of a Classification will update all similarly classified objects.
     """
 
-    _cached_classifications: dict[str, Classification] = {}
+    __cached_classifications: dict[tuple[str], Classification] = {}
 
     def __new__(
         cls, names: Union[str, tuple[str]], color: Optional[tuple[int, int, int]] = None
     ):
         if isinstance(names, str):
             names = (names,)
-        if isinstance(names, list):
+        elif isinstance(names, list):
             names = tuple(names)
         if names is None:
             return None
         if not isinstance(names, tuple):
             raise TypeError("names should be str or tuple[str]")
-        name = ": ".join(names)
-        classification = Classification._cached_classifications.get(name)
+
+        classification = Classification.__cached_classifications.get(names)
         if classification is None:
             classification = super().__new__(cls)
-            Classification._cached_classifications[name] = classification
+            Classification.__cached_classifications[names] = classification
+
+        if color is not None:
+            classification.color = color
         return classification
 
     def __init__(
@@ -43,42 +49,43 @@ class Classification(object):
             names = tuple(names)
         if not isinstance(names, tuple):
             raise TypeError("names should be a tuple, list or string")
-        self._names = names
-        self._color = (
+        self.__names = names
+        self.__color: tuple = (
             tuple(random.randint(0, 255) for _ in range(3)) if color is None else color
         )
 
     @property
-    def name(self) -> str:
-        """
-        The name of the classification.
-        """
-        return ": ".join(self._names)
-
-    @property
     def names(self) -> tuple[str]:
         """
-        The name of the classification.
+        The names of the classification.
         """
-        return self._names
+        return self.__names
 
     @property
     def color(self) -> tuple[int, int, int]:
         """
         The color of the classification.
         """
-        return self._color  ## todo: pylance type hints problem
+        return self.__color  ## todo: pylance type hints problem
+
+    @color.setter
+    def color(self, value: tuple[int, int, int]) -> None:
+        """
+        Change the color of the classification.
+        :param value: the new 8-bit RGB color
+        """
+        self.__color = value
 
     def __str__(self):
-        return f"Classification {self.name} of color {self.color}"
+        return f"Classification {self.names} of color {self.color}"
 
     def __repr__(self):
-        return f"Classification('{self.name}', {self.color})"
+        return f"Classification('{self.names}', {self.color})"
 
     def __eq__(self, other):
         if isinstance(other, Classification):
-            return (self is other) or (self.name == other.name)
+            return (self is other) or (self.names == other.names)
         return False
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.names)
