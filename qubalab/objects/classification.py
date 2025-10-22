@@ -11,7 +11,7 @@ class Classification(object):
     Therefore updating the color of a Classification will update all similarly classified objects.
     """
 
-    __cached_classifications: dict[tuple[str], Classification] = {}
+    _cached_classifications: dict[tuple[str], Classification] = {}
 
     def __new__(
         cls, names: Union[str, tuple[str]], color: Optional[tuple[int, int, int]] = None
@@ -25,10 +25,10 @@ class Classification(object):
         if not isinstance(names, tuple):
             raise TypeError("names should be str or tuple[str]")
 
-        classification = Classification.__cached_classifications.get(names)
+        classification = Classification._cached_classifications.get(names)
         if classification is None:
             classification = super().__new__(cls)
-            Classification.__cached_classifications[names] = classification
+            Classification._cached_classifications[names] = classification
 
         if color is not None:
             classification.color = color
@@ -49,8 +49,8 @@ class Classification(object):
             names = tuple(names)
         if not isinstance(names, tuple):
             raise TypeError("names should be a tuple, list or string")
-        self.__names = names
-        self.__color: tuple = (
+        self._names = names
+        self._color: tuple = (
             tuple(random.randint(0, 255) for _ in range(3)) if color is None else color
         )
 
@@ -59,14 +59,14 @@ class Classification(object):
         """
         The names of the classification.
         """
-        return self.__names
+        return self._names
 
     @property
     def color(self) -> tuple[int, int, int]:
         """
         The color of the classification.
         """
-        return self.__color  ## todo: pylance type hints problem
+        return self._color  ## todo: pylance type hints problem
 
     @color.setter
     def color(self, value: tuple[int, int, int]) -> None:
@@ -74,7 +74,7 @@ class Classification(object):
         Change the color of the classification.
         :param value: the new 8-bit RGB color
         """
-        self.__color = value
+        self._color = value
 
     def __str__(self):
         return f"Classification {self.names} of color {self.color}"
