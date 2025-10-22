@@ -423,7 +423,7 @@ def test_classification_when_created_from_label_image_and_classification_name_pr
     )
 
     assert all(
-        feature.classification.name == expected_classification_name
+        feature.classification.names == (expected_classification_name,)
         for feature in features
     )
 
@@ -457,7 +457,7 @@ def test_classification_when_created_from_label_image_and_classification_dict_pr
 
     assert all(
         feature.classification is None
-        or feature.classification.name in expected_classification_names
+        or feature.classification.names[0] in expected_classification_names
         for feature in features
     )
 
@@ -580,7 +580,7 @@ def test_classification_when_created_from_binary_image_and_classification_name_p
     )
 
     assert all(
-        feature.classification.name == expected_classification_name
+        feature.classification.names == (expected_classification_name,)
         for feature in features
     )
 
@@ -609,7 +609,7 @@ def test_classification_when_created_from_binary_image_and_classification_dict_p
     )
 
     assert all(
-        feature.classification.name in expected_classification_names
+        feature.classification.names[0] in expected_classification_names
         for feature in features
     )
 
@@ -618,7 +618,7 @@ def test_classification_when_set_after_creation():
     expected_classification = Classification("name", (1, 1, 1))
     image_feature = ImageFeature(None)
     image_feature.classification = {
-        "name": expected_classification.name,
+        "names": expected_classification.names,
         "color": expected_classification.color,
     }
 
@@ -630,9 +630,9 @@ def test_classification_when_set_after_creation():
 def test_name_when_set_after_creation():
     expected_name = "name"
     image_feature = ImageFeature(None)
-    image_feature.name = expected_name
+    image_feature.names = expected_name
 
-    name = image_feature.name
+    name = image_feature.names
 
     assert name == expected_name
 
@@ -696,11 +696,7 @@ def test_imagefeature_handles_classification_names():
     """
     feature = geojson_features_from_string(string)
     ifeature = ImageFeature.create_from_feature(feature)
-    assert (
-        ifeature.classification.names
-        == feature["properties"]["classification"]["names"]
-    )
-    assert ifeature.classification.name == ": ".join(
+    assert ifeature.classification.names == tuple(
         feature["properties"]["classification"]["names"]
     )
 
@@ -711,6 +707,6 @@ def test_imagefeature_handles_classification_name():
     """
     feature = geojson_features_from_string(string)
     ifeature = ImageFeature.create_from_feature(feature)
-    assert ifeature.classification.name == ": ".join(
+    assert ifeature.classification.names == tuple(
         feature["properties"]["classification"]["names"]
     )

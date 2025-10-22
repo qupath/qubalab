@@ -6,9 +6,33 @@ from typing import Optional, Union
 class Classification(object):
     """
     Simple class to store the names and color of a classification.
+
+    Each Classification with the same names is the same object, retrieved from a cache.
+    Therefore updating the color of a Classification will update all similarly classified objects.
     """
 
-    _cached_classifications = {}
+    _cached_classifications: dict[tuple[str], Classification] = {}
+
+    def __new__(
+        cls, names: Union[str, tuple[str]], color: Optional[tuple[int, int, int]] = None
+    ):
+        if isinstance(names, str):
+            names = (names,)
+        elif isinstance(names, list):
+            names = tuple(names)
+        if names is None:
+            return None
+        if not isinstance(names, tuple):
+            raise TypeError("names should be str or tuple[str]")
+
+        classification = Classification._cached_classifications.get(names)
+        if classification is None:
+            classification = super().__new__(cls)
+            Classification._cached_classifications[names] = classification
+
+        if color is not None:
+            classification.color = color
+        return classification
 
     def __init__(
         self,
@@ -21,22 +45,19 @@ class Classification(object):
         """
         if isinstance(names, str):
             names = (names,)
+        elif isinstance(names, list):
+            names = tuple(names)
+        if not isinstance(names, tuple):
+            raise TypeError("names should be a tuple, list or string")
         self._names = names
-        self._color = (
+        self._color: tuple = (
             tuple(random.randint(0, 255) for _ in range(3)) if color is None else color
         )
 
     @property
-    def name(self) -> str:
-        """
-        The name of the classification.
-        """
-        return ": ".join(self._names)
-
-    @property
     def names(self) -> tuple[str]:
         """
-        The name of the classification.
+        The names of the classification.
         """
         return self._names
 
@@ -47,49 +68,24 @@ class Classification(object):
         """
         return self._color  ## todo: pylance type hints problem
 
-    @staticmethod
-    def get_cached_classification(
-        name: Optional[Union[str, tuple[str]]],
-        color: Optional[tuple[int, int, int]] = None,
-    ) -> Optional[Classification]:
+    @color.setter
+    def color(self, value: tuple[int, int, int]) -> None:
         """
-        Return a classification by looking at an internal cache.
-
-        If no classification with the provided name is present in the cache, a
-        new classification is created and the cache is updated.
-
-        This is useful if you want to avoid creating multiple classifications with the
-        same name and use only one instead.
-
-        :param name: the name of the classification (can be None)
-        :param color: the RGB color (each component between 0 and 255) of the classification.
-                      Can be None to use a random color. This is only used if the cache doesn't
-                      already contain a classification with the provided name
-        :return: a classification with the provided name, but not always with the provided color
-                 if a classification with the same name already existed in the cache. If the provided
-                 name is None, None is also returned
+        Change the color of the classification.
+        :param value: the new 8-bit RGB color
         """
-        if name is None:
-            return None
-        if isinstance(name, str):
-            name = (name,)
-        name = ": ".join(name)
-        classification = Classification._cached_classifications.get(name)
-        if classification is None:
-            classification = Classification(name, color)
-            Classification._cached_classifications[classification.name] = classification
-        return classification
+        self._color = value
 
     def __str__(self):
-        return f"Classification {self.name} of color {self.color}"
+        return f"Classification {self.names} of color {self.color}"
 
     def __repr__(self):
-        return f"Classification('{self.name}', {self.color})"
+        return f"Classification('{self.names}', {self.color})"
 
     def __eq__(self, other):
         if isinstance(other, Classification):
-            return self.name == other.name and self.color == other.color
+            return (self is other) or (self.names == other.names)
         return False
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.names)

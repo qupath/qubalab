@@ -222,9 +222,7 @@ class ImageFeature(geojson.Feature):
 
                 feature = cls(
                     geometry=geometry,
-                    classification=Classification.get_cached_classification(
-                        classification_name
-                    ),
+                    classification=Classification(classification_name),
                     measurements={"Label": float(label)} if include_labels else None,
                     object_type=object_type,
                 )
