@@ -55,7 +55,7 @@ def _write_image(pixels: np.array):
     zarr = bioio.writers.OMEZarrWriter(
         get_path(),
         dtype=get_dtype(),
-        shape=get_shapes()[0].as_tuple(),
+        level_shapes=get_shapes()[0].as_tuple(),
         image_name="single_resolution_float_5d",
         physical_pixel_size=[
             1,  ## tczyx
